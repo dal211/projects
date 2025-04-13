@@ -1,0 +1,9 @@
+.Rhistory
+.RData
+.Rproj.user
+.Renviron
+/GRF24
+*.docx
+*.html
+map_box_testing.qmd
+mapping.Rmd

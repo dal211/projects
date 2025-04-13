@@ -1,0 +1,98 @@
+---
+title: "Where should I live?"
+format: html
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+---
+
+Right now, it's just median income rank by county.
+
+```{r setup, warnings = FALSE, include = FALSE}
+
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE
+)
+
+source("libraries.R")
+Sys.getenv("MAPBOX_PUBLIC_TOKEN")
+
+```
+
+```{r pull census data, include = FALSE}
+
+tracts <- get_acs(
+  geography = "tract",
+  variables = c(
+    med_income = "B19013_001",
+    rent_burden = "B25070_007",
+    commute_time = "B08303_001"
+  ),
+  state = "MA",
+  geometry = TRUE,
+  year = 2023
+)
+
+```
+
+```{r quality index, include = FALSE}
+
+tracts_wide <- tracts %>%
+  mutate(
+    county = str_match(NAME, ";\\s*([^;]+?)\\s*;")[, 2]
+  ) %>%
+  relocate(county, .after = GEOID) %>%
+  pivot_wider(
+    names_from = variable,
+    values_from = c(estimate, moe)
+  ) %>%
+  group_by(county) %>%
+  mutate(
+    income_perctile = percent_rank(estimate_med_income),
+    #rent_perctile = percent_rank(-estimate_rent_burden),
+    #ct_perctile = percent_rank(-estimate_commute_time),
+    raw_quality_index = income_perctile,
+    quality_index = rescale(raw_quality_index, to = c(0, 1))
+  )
+
+# Group by county and merge geometries
+county_borders <- tracts_wide %>%
+  group_by(county) %>%
+  summarize(geometry = st_union(geometry)) %>%
+  ungroup() %>%
+  st_as_sf()
+
+```
+
+```{r, echo = FALSE}
+
+leaflet(tracts_wide) %>%
+  addMapboxTiles(
+    style_id = "streets-v11",
+    username = "mapbox"
+  ) %>%
+  addPolygons(
+    fillColor = ~ifelse(quality_index >= 0.8, "lightgreen", "transparent"),
+    fillOpacity = 0.2,
+    color = "black",
+    weight = 1,
+    popup = ~paste0(
+      "<strong>Tract:</strong> ", NAME, "<br/>",
+      "<strong>County:</strong> ", county, "<br/>",
+      "<strong>Median Income:</strong> $", formatC(estimate_med_income, format = "f", digits = 0, big.mark = ","), "<br/>",
+      "<strong>Quality Index:</strong> ", round(quality_index * 100, 1), "%"
+    )
+  ) %>% 
+  # County boundary outlines
+  addPolygons(
+    data = county_borders,
+    fill = FALSE,       # no fill, just the border
+    color = "black",
+    weight = 2,         # thicker line than tract borders
+    opacity = 1
+  )  
+
+```
+
