@@ -7,13 +7,6 @@ output:
     vertical_layout: fill
 ---
 
-1. Household median income by Census Tract (Done)
-2. School quality score:
-- MCAS standardized scores (TBD)
-- Graduation rates
-- School expenditure per student
-3. Add town names
-
 ```{r setup, warnings = FALSE, include = FALSE}
 
 knitr::opts_chunk$set(
@@ -27,8 +20,6 @@ source("libraries.R")
 Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 
 ```
-
-# MCAS Test Scores
 
 ```{r include = FALSE}
 
@@ -58,8 +49,6 @@ mcas_agg <- mcas %>%
   )
 
 ```
-
-# Census Tract Data
 
 ```{r pull census data, include = FALSE}
 
@@ -126,8 +115,6 @@ tracts_map <- st_transform(tracts_map, crs = 4326)
 
 ```
 
-# School District to Town crosswalk
-
 ```{r include = FALSE}
 
 town_school_dist_xwalk <- read_xlsx("data/final_school_districts_mapping_v1.xlsx") %>%
@@ -138,7 +125,7 @@ town_school_dist_xwalk <- read_xlsx("data/final_school_districts_mapping_v1.xlsx
 
 ```
 
-```{r}
+```{r include = FALSE}
 
 tracts_map1 <- tracts_map %>% 
   left_join(
@@ -159,7 +146,6 @@ tracts_map1 <- tracts_map %>%
 
 ```
 
-# Generate Map
 ```{r, echo = FALSE}
 
 leaflet(tracts_map1) %>%
@@ -181,7 +167,8 @@ leaflet(tracts_map1) %>%
       " (", round(income_perctile * 100), "th ptile)<br/>",
       "<strong>School District:</strong> ", DIST_NAME, "<br/>",
       "<strong>School Size:</strong> ", school_size_est, "<br/>",
-      "<strong>MCAS Percentile:</strong> ", ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile,"%"), "<br/>",      
+      "<strong>MCAS Percentile:</strong> ", 
+        ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>",      
       "<strong>Quality Index:</strong> ", round(quality_index * 100, 1), "%"
     )
   ) %>% 
@@ -193,5 +180,19 @@ leaflet(tracts_map1) %>%
     opacity = 1
   )
 
+
 ```
 
+```{r include = FALSE}
+
+# School quality score: 
+# 
+# MCAS standardized scores (DONE) 
+# 
+# Graduation rates
+# 
+# School expenditure per student
+
+
+
+```
