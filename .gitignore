@@ -6,3 +6,5 @@
 *.docx
 map_box_testing.qmd
 mapping.Rmd
+data/
+output/

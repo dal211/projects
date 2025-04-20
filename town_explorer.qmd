@@ -7,7 +7,12 @@ output:
     vertical_layout: fill
 ---
 
-Right now, it's just median income rank by county.
+1. Household median income by Census Tract (Done)
+2. School quality score:
+- MCAS standardized scores (TBD)
+- Graduation rates
+- School expenditure per student
+3. Add town names
 
 ```{r setup, warnings = FALSE, include = FALSE}
 
@@ -16,19 +21,54 @@ knitr::opts_chunk$set(
   message = FALSE
 )
 
+options(scipen = 9999) 
+
 source("libraries.R")
 Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 
 ```
 
+# MCAS Test Scores
+
+```{r include = FALSE}
+
+mcas <- read_csv("data/MCAS_Achievement_Results_20250415.csv") %>%
+  filter(
+    SY == 2024,
+    STUGRP == "White",
+    ORG_NAME != "State",
+    TEST_GRADE == "10",
+    ORG_TYPE == "Public School District"
+  ) %>%
+  select(
+    SY:STUGRP, STU_CNT, E_CNT, AVG_SCALED_SCORE
+  )
+
+mcas_agg <- mcas %>%
+  group_by(DIST_NAME) %>%
+  summarize(
+    stu_cnt = median(STU_CNT),
+    exceed_cnt = round(weighted.mean(E_CNT, w = STU_CNT), 0),
+    avg_score = round(weighted.mean(AVG_SCALED_SCORE, w = STU_CNT), 0)
+  ) %>%
+  mutate(
+    exceed_perct = round(exceed_cnt / stu_cnt, 3),
+    school_size_est = stu_cnt*4,
+    exceed_mcas_percentile = round(percent_rank(exceed_perct)*100,1)
+  )
+
+```
+
+# Census Tract Data
+
 ```{r pull census data, include = FALSE}
+
+options(tigris_use_cache = TRUE)
 
 tracts <- get_acs(
   geography = "tract",
   variables = c(
-    med_income = "B19013_001",
-    rent_burden = "B25070_007",
-    commute_time = "B08303_001"
+    hh_income = "B19013_001"
   ),
   state = "MA",
   geometry = TRUE,
@@ -49,26 +89,80 @@ tracts_wide <- tracts %>%
     values_from = c(estimate, moe)
   ) %>%
   group_by(county) %>%
-  mutate(
-    income_perctile = percent_rank(estimate_med_income),
-    #rent_perctile = percent_rank(-estimate_rent_burden),
-    #ct_perctile = percent_rank(-estimate_commute_time),
-    raw_quality_index = income_perctile,
-    quality_index = rescale(raw_quality_index, to = c(0, 1))
-  )
+  mutate(NAME = str_extract(NAME, "^[^;]+\\s*"))
 
 # Group by county and merge geometries
 county_borders <- tracts_wide %>%
   group_by(county) %>%
   summarize(geometry = st_union(geometry)) %>%
   ungroup() %>%
-  st_as_sf()
+  st_as_sf() %>% 
+  ungroup()
+
+county_borders <- st_transform(county_borders, crs = 4326)
+
+# Get town boundaries (places)
+towns <- tigris::places(state = "MA", cb = TRUE, year = 2023) %>% 
+  st_transform(crs = st_crs(tracts))
+
+# Spatial join: assign town names to each tract
+tracts_with_towns <- st_join(tracts, towns["NAME"]) %>% 
+  rename(tract_name = NAME.x,
+         town_name = NAME.y) %>% 
+  group_by(GEOID) %>% 
+  mutate(count_grp = n()) %>% 
+  relocate(count_grp)
+
+# Join derived values back into tract-town data
+tracts_map <- tracts_with_towns %>%
+  left_join(
+    tracts_wide %>% st_drop_geometry(), 
+    by = "GEOID"
+  ) %>% 
+  ungroup()
+
+tracts_map <- st_as_sf(tracts_map)
+tracts_map <- st_transform(tracts_map, crs = 4326)
 
 ```
 
+# School District to Town crosswalk
+
+```{r include = FALSE}
+
+town_school_dist_xwalk <- read_xlsx("data/final_school_districts_mapping_v1.xlsx") %>%
+  distinct() %>%
+  arrange(town_name) %>%
+  group_by(town_name) %>%
+  slice(1)
+
+```
+
+```{r}
+
+tracts_map1 <- tracts_map %>% 
+  left_join(
+    town_school_dist_xwalk,
+    by = "town_name") %>% 
+  left_join(
+    mcas_agg,
+    by = "DIST_NAME"
+  ) %>% 
+  mutate(
+    income_perctile = percent_rank(estimate_hh_income),
+    raw_quality_index = .4*income_perctile + .6*exceed_mcas_percentile, 
+    quality_index = rescale(raw_quality_index, to = c(0, 1))
+  )
+
+# na_dist <- tracts_map1 %>% 
+#   filter(is.na(DIST_NAME))
+
+```
+
+# Generate Map
 ```{r, echo = FALSE}
 
-leaflet(tracts_wide) %>%
+leaflet(tracts_map1) %>%
   addMapboxTiles(
     style_id = "streets-v11",
     username = "mapbox"
@@ -79,20 +173,25 @@ leaflet(tracts_wide) %>%
     color = "black",
     weight = 1,
     popup = ~paste0(
-      "<strong>Tract:</strong> ", NAME, "<br/>",
-      "<strong>County:</strong> ", county, "<br/>",
-      "<strong>Median Income:</strong> $", formatC(estimate_med_income, format = "f", digits = 0, big.mark = ","), "<br/>",
+#      "<strong>Tract:</strong> ", NAME, "<br/>",
+      "<strong>Town:</strong> ", town_name, "<br/>",      
+      "<strong>County:</strong> ", county, "<br/>",      
+      "<strong>Household Median Income:</strong> $", 
+      formatC(estimate_hh_income, format = "f", digits = 0, big.mark = ","), 
+      " (", round(income_perctile * 100), "th ptile)<br/>",
+      "<strong>School District:</strong> ", DIST_NAME, "<br/>",
+      "<strong>School Size:</strong> ", school_size_est, "<br/>",
+      "<strong>MCAS Percentile:</strong> ", ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile,"%"), "<br/>",      
       "<strong>Quality Index:</strong> ", round(quality_index * 100, 1), "%"
     )
   ) %>% 
-  # County boundary outlines
   addPolygons(
     data = county_borders,
-    fill = FALSE,       # no fill, just the border
+    fill = FALSE,
     color = "black",
-    weight = 2,         # thicker line than tract borders
+    weight = 2,
     opacity = 1
-  )  
+  )
 
 ```
 
