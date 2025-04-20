@@ -1,11 +1,17 @@
 ---
-title: "Where should I live?"
+title: "Massachusetts Town Explorer"
 format: html
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
     vertical_layout: fill
 ---
+
+Where should I live based on:
+
+-   State Household Income
+
+-   School quality: Currently percentage of students that do particularly well on the overall MCAS
 
 ```{r setup, warnings = FALSE, include = FALSE}
 
