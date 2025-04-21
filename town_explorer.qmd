@@ -1,5 +1,5 @@
 ---
-title: "Massachusetts Town Explorer"
+title: "Massachusetts Town Explorer 🏠"
 format: html
 output: 
   flexdashboard::flex_dashboard:
@@ -154,22 +154,22 @@ leaflet(tracts_map1) %>%
     username = "mapbox"
   ) %>%
   addPolygons(
-    fillColor = ~ifelse(quality_index >= 0.8, "lightgreen", "transparent"),
+    fillColor = ~ifelse(quality_index >= 0.8, "lightblue", "transparent"),
     fillOpacity = 0.2,
     color = "black",
     weight = 1,
     popup = ~paste0(
 #      "<strong>Tract:</strong> ", NAME, "<br/>",
       "<strong>Town:</strong> ", town_name, "<br/>",      
-      "<strong>County:</strong> ", county, "<br/>",      
+      "<strong>County:</strong> ", county, "<br/>",
+      "<strong>School District:</strong> ", DIST_NAME, "<br/>",      
       "<strong>Household Median Income:</strong> $", 
       formatC(estimate_hh_income, format = "f", digits = 0, big.mark = ","), 
       " (", round(income_perctile * 100), "th ptile)<br/>",
-      "<strong>School District:</strong> ", DIST_NAME, "<br/>",
       "<strong>School Size:</strong> ", school_size_est, "<br/>",
       "<strong>MCAS Percentile:</strong> ", 
         ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>",      
-      "<strong>Quality Index:</strong> ", round(quality_index * 100, 1), "%"
+      "<strong>Overall quality score:</strong> ", round(quality_index * 100, 1), "%"
     )
   ) %>% 
   addPolygons(
