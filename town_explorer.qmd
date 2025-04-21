@@ -1,5 +1,5 @@
 ---
-title: "Massachusetts Town Explorer 🏠"
+title: "Massachusetts Town Explorer"
 format: html
 output: 
   flexdashboard::flex_dashboard:
@@ -154,7 +154,7 @@ leaflet(tracts_map1) %>%
     username = "mapbox"
   ) %>%
   addPolygons(
-    fillColor = ~ifelse(quality_index >= 0.8, "lightblue", "transparent"),
+    fillColor = ~ifelse(quality_index >= 0.8, "#ffc107", "transparent"),
     fillOpacity = 0.2,
     color = "black",
     weight = 1,
@@ -194,5 +194,16 @@ leaflet(tracts_map1) %>%
 # School expenditure per student
 
 
+
+```
+
+```{=html}
+
+<hr style="margin-top:30px;">
+<p style="text-align:center; font-size:14px; color:gray;">
+  🐧 Built by <strong>DJ</strong> · 
+  <a href="https://github.com/dal211/projects" target="_blank">GitHub</a> · 
+  Data: ACS, DESE, Mapbox
+</p>
 
 ```
