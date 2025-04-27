@@ -19,7 +19,13 @@ options(scipen = 9999)
 source("libraries.R")
 Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 
+# Realtor API (only 30 calls here)
+# api_key <- Sys.getenv("RAPIDAPI_KEY")
+# api_host <- "realtor.p.rapidapi.com"
+
 ```
+
+# MCAS data
 
 ```{r include = FALSE}
 
@@ -50,6 +56,44 @@ mcas_agg <- mcas %>%
 
 ```
 
+# Zillow data
+
+```{r}
+
+three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv") %>%
+  filter(State == "MA") %>%
+  select(RegionName, State, CountyName, last_col(offset = 12), last_col()) %>%
+  mutate(one_year_price_change = round((`3/31/2025` - `3/31/2024`) / `3/31/2024` * 100, 1))
+
+tracts_town_names <- tracts_map %>%
+  as_tibble() %>%
+  select(town_name) %>%
+  distinct() %>% 
+  arrange(town_name)
+
+zillow_town_names <- three_bed_home_price_zil %>%
+  select(RegionName) %>% 
+  distinct() %>% 
+  arrange(RegionName)
+
+zillow_town_names1 <- zillow_town_names %>% 
+  fuzzyjoin::stringdist_left_join(
+    y = tracts_town_names,
+    by = c("RegionName" = "town_name"),
+    ignore_case = TRUE, 
+    method = "jw",
+    max_dist = 2, 
+    distance_col = "dist"
+  ) %>% 
+  arrange((dist))
+
+mapping <- read_csv("data/Mapping_Table_of_RegionName_to_MatchedTownName.csv")
+
+
+```
+
+# ACS Census Tract Data
+
 ```{r pull census data, include = FALSE}
 
 options(tigris_use_cache = TRUE)
@@ -58,6 +102,7 @@ tracts <- get_acs(
   geography = "tract",
   variables = c(
     hh_income = "B19013_001"
+    #med_home_value = "B25077_001"
   ),
   state = "MA",
   geometry = TRUE,
@@ -90,8 +135,8 @@ county_borders <- tracts_wide %>%
 
 county_borders <- st_transform(county_borders, crs = 4326)
 
-# Get town boundaries (places)
-towns <- tigris::places(state = "MA", cb = TRUE, year = 2023) %>% 
+# Instead of places(), use county subdivisions:
+towns <- tigris::county_subdivisions(state = "MA", cb = TRUE, year = 2023) %>%
   st_transform(crs = st_crs(tracts))
 
 # Spatial join: assign town names to each tract
@@ -114,6 +159,8 @@ tracts_map <- st_as_sf(tracts_map)
 tracts_map <- st_transform(tracts_map, crs = 4326)
 
 ```
+
+## School District mapping 
 
 ```{r include = FALSE}
 
@@ -145,6 +192,8 @@ tracts_map1 <- tracts_map %>%
 #   filter(is.na(DIST_NAME))
 
 ```
+
+# Generate Mapbox map
 
 ```{r, echo = FALSE}
 
@@ -203,7 +252,7 @@ leaflet(tracts_map1) %>%
 <p style="text-align:center; font-size:14px; color:gray;">
   🐧 Built by <strong>DJ</strong> · 
   <a href="https://github.com/dal211/projects" target="_blank">GitHub</a> · 
-  Data: ACS, DESE, Mapbox
+  Data: Census ACS, DESE, Mapbox
 </p>
 
 ```
