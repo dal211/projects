@@ -196,12 +196,13 @@ leaflet(tracts_map1) %>%
       ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>"
     )
   ) %>%
-  addPolygons(
-    data = county_borders,
-    fill = FALSE,
-    color = "black",
-    weight = 2,
-    opacity = 1
+  addLegend(
+    position = "bottomleft",
+    colors = "#ffc107",
+    labels = "Top 20% MCAS School Districts",
+    title = "<div style='font-size:13px;'>School District Quality</div>",
+    opacity = 0.9,
+    labFormat = labelFormat(textsize = "10px")
   )
 
 
@@ -227,7 +228,6 @@ leaflet(tracts_map1) %>%
 <p style="text-align:center; font-size:14px; color:gray;">
   🐧 Built by <strong>DJ</strong> · 
   <a href="https://github.com/dal211/projects" target="_blank">GitHub</a> · 
-  Data: Census ACS, DESE, Mapbox
+  Data: Census ACS, DESE, Mapbox, Zillow
 </p>
-
 ```
