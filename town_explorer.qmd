@@ -165,15 +165,13 @@ tracts_map1 <- tracts_map %>%
 ```
 
 ```{r, echo = FALSE}
-
 leaflet(tracts_map1) %>%
   addMapboxTiles(
     style_id = "streets-v11",
     username = "mapbox"
   ) %>%
   addPolygons(
-    fillColor = ~ ifelse(exceed_mcas_percentile >= 80, "#ffc107", "transparent"),
-    fillOpacity = 0.2,
+    fill = FALSE,
     color = "black",
     weight = 1,
     popup = ~ paste0(
