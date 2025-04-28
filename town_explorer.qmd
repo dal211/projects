@@ -172,7 +172,7 @@ leaflet(tracts_map1) %>%
     username = "mapbox"
   ) %>%
   addPolygons(
-    fillColor = ~ ifelse(exceed_mcas_percentile >= 0.8, "#ffc107", "transparent"),
+    fillColor = ~ ifelse(exceed_mcas_percentile >= 80, "#ffc107", "transparent"),
     fillOpacity = 0.2,
     color = "black",
     weight = 1,
