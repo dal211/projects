@@ -20,8 +20,6 @@ Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 
 ```
 
-# MCAS data
-
 ```{r include = FALSE}
 
 mcas <- read_csv("data/MCAS_Achievement_Results_20250415.csv") %>%
@@ -50,8 +48,6 @@ mcas_agg <- mcas %>%
   )
 
 ```
-
-# ACS Census Tract Data
 
 ```{r pull census data, include = FALSE}
 
@@ -119,8 +115,6 @@ tracts_map <- st_transform(tracts_map, crs = 4326)
 
 ```
 
-## School District mapping 
-
 ```{r include = FALSE}
 
 town_school_dist_xwalk <-
@@ -132,9 +126,7 @@ town_school_dist_xwalk <-
 
 ```
 
-# Zillow data
-
-```{r}
+```{r include = FALSE}
 
 price_town_mapping <- 
   read_csv("data/Mapping_Table_with_Exact_Match_Column2.csv")
@@ -172,8 +164,6 @@ tracts_map1 <- tracts_map %>%
 
 ```
 
-# Generate Mapbox map
-
 ```{r, echo = FALSE}
 
 leaflet(tracts_map1) %>%
@@ -193,7 +183,7 @@ leaflet(tracts_map1) %>%
       "<strong>School District:</strong> ", DIST_NAME, "<br/>",
       "<strong>Typical Home Price (3rm):</strong> $",
       paste0(
-        round(typical_home_price_three_bedroom / 1000), "K", # Nearest thousand with "K"
+        round(current_typ_home_value / 1000), "K", # Nearest thousand with "K"
         " (",
         ifelse(round(one_year_price_change) > 0,
           paste0("+", round(one_year_price_change)),
