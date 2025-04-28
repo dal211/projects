@@ -160,20 +160,31 @@ tracts_map1 <- tracts_map %>%
   left_join(
     three_bed_home_price_zil,
     by = c("region_name" = "RegionName")
+  ) %>%
+  mutate(
+    mcas_color = if_else(exceed_mcas_percentile > 80, 1, 0)
   )
 
 ```
 
 ```{r, echo = FALSE}
+
+pal_bin <- colorFactor(
+  palette = c("transparent", "#ffc107"),   # no fill vs “gold” fill
+  domain  = tracts_map1$mcas_color,
+  na.color = "transparent"
+)
+
 leaflet(tracts_map1) %>%
   addMapboxTiles(
     style_id = "streets-v11",
     username = "mapbox"
   ) %>%
   addPolygons(
-    fill = FALSE,
-    color = "black",
-    weight = 1,
+    fillColor    = ~pal_bin(mcas_color),
+    fillOpacity  = 0.6,
+    color        = "black",
+    weight       = 1,
     popup = ~ paste0(
       #      "<strong>Tract:</strong> ", NAME, "<br/>",
       "<strong>Town:</strong> ", town_name, "<br/>",
@@ -193,15 +204,15 @@ leaflet(tracts_map1) %>%
       "<strong>MCAS Percentile:</strong> ",
       ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>"
     )
+  ) %>% 
+  addLegend(
+    position = "bottomleft",
+    colors = "#ffc107",
+    labels = "Top 20% MCAS School Districts",
+    title = "<div style='font-size:13px;'>School District Quality</div>",
+    opacity = 0.9,
+    labFormat = labelFormat(textsize = "10px")
   )
-  # addLegend(
-  #   position = "bottomleft",
-  #   colors = "#ffc107",
-  #   labels = "Top 20% MCAS School Districts",
-  #   title = "<div style='font-size:13px;'>School District Quality</div>",
-  #   opacity = 0.9,
-  #   labFormat = labelFormat(textsize = "10px")
-  # )
 
 
 ```
