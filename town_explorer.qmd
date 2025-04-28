@@ -9,19 +9,14 @@ output:
 
 ```{r setup, warnings = FALSE, include = FALSE}
 
+options(scipen = 9999)
 knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE
 )
 
-options(scipen = 9999) 
-
 source("libraries.R")
 Sys.getenv("MAPBOX_PUBLIC_TOKEN")
-
-# Realtor API (only 30 calls here)
-# api_key <- Sys.getenv("RAPIDAPI_KEY")
-# api_host <- "realtor.p.rapidapi.com"
 
 ```
 
@@ -50,45 +45,9 @@ mcas_agg <- mcas %>%
   ) %>%
   mutate(
     exceed_perct = round(exceed_cnt / stu_cnt, 3),
-    school_size_est = stu_cnt*4,
-    exceed_mcas_percentile = round(percent_rank(exceed_perct)*100,1)
+    school_size_est = stu_cnt * 4,
+    exceed_mcas_percentile = round(percent_rank(exceed_perct) * 100, 1)
   )
-
-```
-
-# Zillow data
-
-```{r}
-
-three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv") %>%
-  filter(State == "MA") %>%
-  select(RegionName, State, CountyName, last_col(offset = 12), last_col()) %>%
-  mutate(one_year_price_change = round((`3/31/2025` - `3/31/2024`) / `3/31/2024` * 100, 1))
-
-tracts_town_names <- tracts_map %>%
-  as_tibble() %>%
-  select(town_name) %>%
-  distinct() %>% 
-  arrange(town_name)
-
-zillow_town_names <- three_bed_home_price_zil %>%
-  select(RegionName) %>% 
-  distinct() %>% 
-  arrange(RegionName)
-
-zillow_town_names1 <- zillow_town_names %>% 
-  fuzzyjoin::stringdist_left_join(
-    y = tracts_town_names,
-    by = c("RegionName" = "town_name"),
-    ignore_case = TRUE, 
-    method = "jw",
-    max_dist = 2, 
-    distance_col = "dist"
-  ) %>% 
-  arrange((dist))
-
-mapping <- read_csv("data/Mapping_Table_of_RegionName_to_MatchedTownName.csv")
-
 
 ```
 
@@ -164,7 +123,8 @@ tracts_map <- st_transform(tracts_map, crs = 4326)
 
 ```{r include = FALSE}
 
-town_school_dist_xwalk <- read_xlsx("data/final_school_districts_mapping_v1.xlsx") %>%
+town_school_dist_xwalk <-
+  read_csv("data/final_school_districts_mapping_v1.csv") %>%
   distinct() %>%
   arrange(town_name) %>%
   group_by(town_name) %>%
@@ -172,24 +132,43 @@ town_school_dist_xwalk <- read_xlsx("data/final_school_districts_mapping_v1.xlsx
 
 ```
 
+# Zillow data
+
+```{r}
+
+price_town_mapping <- 
+  read_csv("data/Mapping_Table_with_Exact_Match_Column2.csv")
+
+three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv") %>%
+  filter(State == "MA") %>%
+  select(RegionName, State, CountyName, last_col(offset = 12), last_col()) %>%
+  mutate(one_year_price_change = round((`3/31/2025` - `3/31/2024`) / `3/31/2024` * 100, 1)) %>% 
+  rename(
+    current_typ_home_value = `3/31/2025`,
+    lst_yr_typ_home_value = `3/31/2024`
+  )
+
+```
+
 ```{r include = FALSE}
 
-tracts_map1 <- tracts_map %>% 
+tracts_map1 <- tracts_map %>%
   left_join(
     town_school_dist_xwalk,
-    by = "town_name") %>% 
+    by = "town_name"
+  ) %>%
   left_join(
     mcas_agg,
     by = "DIST_NAME"
-  ) %>% 
-  mutate(
-    income_perctile = percent_rank(estimate_hh_income),
-    raw_quality_index = .4*income_perctile + .6*exceed_mcas_percentile, 
-    quality_index = rescale(raw_quality_index, to = c(0, 1))
+  ) %>%
+  left_join(
+    price_town_mapping,
+    by = c("town_name")
+  ) %>%
+  left_join(
+    three_bed_home_price_zil,
+    by = c("region_name" = "RegionName")
   )
-
-# na_dist <- tracts_map1 %>% 
-#   filter(is.na(DIST_NAME))
 
 ```
 
@@ -203,24 +182,30 @@ leaflet(tracts_map1) %>%
     username = "mapbox"
   ) %>%
   addPolygons(
-    fillColor = ~ifelse(quality_index >= 0.8, "#ffc107", "transparent"),
+    fillColor = ~ ifelse(exceed_mcas_percentile >= 0.8, "#ffc107", "transparent"),
     fillOpacity = 0.2,
     color = "black",
     weight = 1,
-    popup = ~paste0(
-#      "<strong>Tract:</strong> ", NAME, "<br/>",
-      "<strong>Town:</strong> ", town_name, "<br/>",      
+    popup = ~ paste0(
+      #      "<strong>Tract:</strong> ", NAME, "<br/>",
+      "<strong>Town:</strong> ", town_name, "<br/>",
       "<strong>County:</strong> ", county, "<br/>",
-      "<strong>School District:</strong> ", DIST_NAME, "<br/>",      
-      "<strong>Household Median Income:</strong> $", 
-      formatC(estimate_hh_income, format = "f", digits = 0, big.mark = ","), 
-      " (", round(income_perctile * 100), "th ptile)<br/>",
+      "<strong>School District:</strong> ", DIST_NAME, "<br/>",
+      "<strong>Typical Home Price (3rm):</strong> $",
+      paste0(
+        round(typical_home_price_three_bedroom / 1000), "K", # Nearest thousand with "K"
+        " (",
+        ifelse(round(one_year_price_change) > 0,
+          paste0("+", round(one_year_price_change)),
+          round(one_year_price_change)
+        ),
+        "%)<br/>" # Cleaner wording for 3 bedroom
+      ),
       "<strong>School Size:</strong> ", school_size_est, "<br/>",
-      "<strong>MCAS Percentile:</strong> ", 
-        ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>",      
-      "<strong>Overall quality score:</strong> ", round(quality_index * 100, 1), "%"
+      "<strong>MCAS Percentile:</strong> ",
+      ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>"
     )
-  ) %>% 
+  ) %>%
   addPolygons(
     data = county_borders,
     fill = FALSE,
