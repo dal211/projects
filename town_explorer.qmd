@@ -66,55 +66,6 @@ tracts <- get_acs(
 
 ```
 
-```{r quality index, include = FALSE}
-
-tracts_wide <- tracts %>%
-  mutate(
-    county = str_match(NAME, ";\\s*([^;]+?)\\s*;")[, 2]
-  ) %>%
-  relocate(county, .after = GEOID) %>%
-  pivot_wider(
-    names_from = variable,
-    values_from = c(estimate, moe)
-  ) %>%
-  group_by(county) %>%
-  mutate(NAME = str_extract(NAME, "^[^;]+\\s*"))
-
-# Group by county and merge geometries
-county_borders <- tracts_wide %>%
-  group_by(county) %>%
-  summarize(geometry = st_union(geometry)) %>%
-  ungroup() %>%
-  st_as_sf() %>% 
-  ungroup()
-
-county_borders <- st_transform(county_borders, crs = 4326)
-
-# Instead of places(), use county subdivisions:
-towns <- tigris::county_subdivisions(state = "MA", cb = TRUE, year = 2023) %>%
-  st_transform(crs = st_crs(tracts))
-
-# Spatial join: assign town names to each tract
-tracts_with_towns <- st_join(tracts, towns["NAME"]) %>% 
-  rename(tract_name = NAME.x,
-         town_name = NAME.y) %>% 
-  group_by(GEOID) %>% 
-  mutate(count_grp = n()) %>% 
-  relocate(count_grp)
-
-# Join derived values back into tract-town data
-tracts_map <- tracts_with_towns %>%
-  left_join(
-    tracts_wide %>% st_drop_geometry(), 
-    by = "GEOID"
-  ) %>% 
-  ungroup()
-
-tracts_map <- st_as_sf(tracts_map)
-tracts_map <- st_transform(tracts_map, crs = 4326)
-
-```
-
 ```{r include = FALSE}
 
 town_school_dist_xwalk <-
@@ -142,17 +93,16 @@ three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_
 
 ```
 
-```{r include = FALSE}
-
-tracts_map1 <- tracts_map %>%
-  left_join(
-    town_school_dist_xwalk,
-    by = "town_name"
-  ) %>%
-  left_join(
-    mcas_agg,
-    by = "DIST_NAME"
-  ) %>%
+```{r town-level-mcas-map, echo=TRUE}
+# 1a) Grab true town boundaries and join MCAS data
+towns_sf <- tigris::county_subdivisions(
+  state = "MA",
+  cb    = TRUE,
+  year  = 2023
+) %>%
+  rename(town_name = NAME) %>%
+  left_join(town_school_dist_xwalk, by = "town_name") %>%
+  left_join(mcas_agg, by = "DIST_NAME") %>%
   left_join(
     price_town_mapping,
     by = c("town_name")
@@ -160,35 +110,32 @@ tracts_map1 <- tracts_map %>%
   left_join(
     three_bed_home_price_zil,
     by = c("region_name" = "RegionName")
-  ) %>%
+  ) %>%   
   mutate(
     mcas_color = if_else(exceed_mcas_percentile > 80, 1, 0)
   )
 
-```
-
-```{r, echo = FALSE}
-
+# 1b) Build a binary palette: transparent vs. gold
 pal_bin <- colorFactor(
-  palette = c("transparent", "#ffc107"),   # no fill vs “gold” fill
-  domain  = tracts_map1$mcas_color,
+  palette  = c("transparent", "#ffc107"),
+  domain   = c(0, 1),
   na.color = "transparent"
 )
 
-leaflet(tracts_map1) %>%
+# 1c) Render the leaflet map with one polygon per town
+leaflet(towns_sf) %>%
   addMapboxTiles(
     style_id = "streets-v11",
     username = "mapbox"
   ) %>%
   addPolygons(
-    fillColor    = ~pal_bin(mcas_color),
-    fillOpacity  = 0.6,
-    color        = "black",
-    weight       = 1,
+    fillColor = ~ pal_bin(mcas_color),
+    fillOpacity = 0.7,
+    color = "black",
+    weight = 1,
     popup = ~ paste0(
       #      "<strong>Tract:</strong> ", NAME, "<br/>",
       "<strong>Town:</strong> ", town_name, "<br/>",
-      "<strong>County:</strong> ", county, "<br/>",
       "<strong>School District:</strong> ", DIST_NAME, "<br/>",
       "<strong>Typical Home Price (3rm):</strong> $",
       paste0(
@@ -204,7 +151,7 @@ leaflet(tracts_map1) %>%
       "<strong>MCAS Percentile:</strong> ",
       ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>"
     )
-  ) %>% 
+  ) %>%
   addLegend(
     position = "bottomleft",
     colors = "#ffc107",
@@ -214,21 +161,6 @@ leaflet(tracts_map1) %>%
     labFormat = labelFormat(textsize = "10px")
   )
 
-
-```
-
-```{r include = FALSE}
-
-# School quality score: 
-# 
-# MCAS standardized scores (DONE) 
-# 
-# Graduation rates
-# 
-# School expenditure per student
-
-
-
 ```
 
 ```{=html}
@@ -237,6 +169,6 @@ leaflet(tracts_map1) %>%
 <p style="text-align:center; font-size:14px; color:gray;">
   🐧 Built by <strong>DJ</strong> · 
   <a href="https://github.com/dal211/projects" target="_blank">GitHub</a> · 
-  Data: Census ACS, DESE, Mapbox, Zillow
+  Data: DESE, Mapbox, Zillow
 </p>
 ```
