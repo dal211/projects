@@ -134,7 +134,7 @@ leaflet(towns_sf) %>%
   ) %>%
   addPolygons(
     fillColor = ~ pal_bin(mcas_color),
-    fillOpacity = 0.7,
+    fillOpacity = 0.15,
     color = "black",
     weight = 1,
     popup = ~ paste0(
