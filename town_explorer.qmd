@@ -93,7 +93,7 @@ three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_
 
 ```
 
-```{r town-level-mcas-map, echo=TRUE}
+```{r town-level-mcas-map, echo=TRUE, include = FALSE}
 # 1a) Grab true town boundaries and join MCAS data
 towns_sf <- tigris::county_subdivisions(
   state = "MA",
@@ -112,7 +112,7 @@ towns_sf <- tigris::county_subdivisions(
     by = c("region_name" = "RegionName")
   ) %>%   
   mutate(
-    mcas_color = if_else(exceed_mcas_percentile > 80, 1, 0)
+    mcas_color = if_else(exceed_mcas_percentile > 70, 1, 0)
   )
 
 # 1b) Build a binary palette: transparent vs. gold
@@ -121,6 +121,10 @@ pal_bin <- colorFactor(
   domain   = c(0, 1),
   na.color = "transparent"
 )
+
+```
+
+```{r echo = FALSE}
 
 # 1c) Render the leaflet map with one polygon per town
 leaflet(towns_sf) %>%
@@ -161,7 +165,9 @@ leaflet(towns_sf) %>%
     labFormat = labelFormat(textsize = "10px")
   )
 
+
 ```
+
 
 ```{=html}
 
