@@ -1,13 +1,14 @@
 ---
 title: "Massachusetts Town Explorer"
 format: html
+runtime: shiny
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
     vertical_layout: fill
 ---
 
-```{r setup, warnings = FALSE, include = FALSE}
+```{r setup, warnings = FALSE}
 
 options(scipen = 9999)
 knitr::opts_chunk$set(
@@ -16,11 +17,12 @@ knitr::opts_chunk$set(
 )
 
 source("libraries.R")
+library("shiny")
 Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 
 ```
 
-```{r include = FALSE}
+```{r}
 
 mcas <- read_csv("data/MCAS_Achievement_Results_20250415.csv") %>%
   filter(
@@ -49,7 +51,7 @@ mcas_agg <- mcas %>%
 
 ```
 
-```{r pull census data, include = FALSE}
+```{r pull census data}
 
 options(tigris_use_cache = TRUE)
 
@@ -66,7 +68,7 @@ tracts <- get_acs(
 
 ```
 
-```{r include = FALSE}
+```{r}
 
 town_school_dist_xwalk <-
   read_csv("data/final_school_districts_mapping_v1.csv") %>%
@@ -77,7 +79,7 @@ town_school_dist_xwalk <-
 
 ```
 
-```{r include = FALSE}
+```{r}
 
 price_town_mapping <- 
   read_csv("data/Mapping_Table_with_Exact_Match_Column2.csv")
@@ -93,7 +95,7 @@ three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_
 
 ```
 
-```{r town-level-mcas-map, echo=TRUE, include = FALSE}
+```{r town-level-mcas-map, echo=TRUE}
 # 1a) Grab true town boundaries and join MCAS data
 towns_sf <- tigris::county_subdivisions(
   state = "MA",
@@ -124,50 +126,79 @@ pal_bin <- colorFactor(
 
 ```
 
-```{r echo = FALSE}
+```{r}
 
-# 1c) Render the leaflet map with one polygon per town
-leaflet(towns_sf) %>%
-  addMapboxTiles(
-    style_id = "streets-v11",
-    username = "mapbox"
-  ) %>%
-  addPolygons(
-    fillColor = ~ pal_bin(mcas_color),
-    fillOpacity = 0.15,
-    color = "black",
-    weight = 1,
-    popup = ~ paste0(
-      #      "<strong>Tract:</strong> ", NAME, "<br/>",
-      "<strong>Town:</strong> ", town_name, "<br/>",
-      "<strong>School District:</strong> ", DIST_NAME, "<br/>",
-      "<strong>Typical Home Price (3rm):</strong> $",
-      paste0(
-        round(current_typ_home_value / 1000), "K", # Nearest thousand with "K"
-        " (",
-        ifelse(round(one_year_price_change) > 0,
-          paste0("+", round(one_year_price_change)),
-          round(one_year_price_change)
-        ),
-        "%)<br/>" # Cleaner wording for 3 bedroom
-      ),
-      "<strong>School Size:</strong> ", school_size_est, "<br/>",
-      "<strong>MCAS Percentile:</strong> ",
-      ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>"
-    )
-  ) %>%
-  addLegend(
-    position = "bottomleft",
-    colors = "#ffc107",
-    labels = "Top 20% MCAS School Districts",
-    title = "<div style='font-size:13px;'>School District Quality</div>",
-    opacity = 0.9,
-    labFormat = labelFormat(textsize = "10px")
-  )
-
+# <-- this is your UI control
+selectInput(
+  inputId  = "town_sel",
+  label    = "Pick a town:",
+  choices  = sort(unique(towns_sf$town_name)),
+  selected = "Boston"
+)
 
 ```
 
+```{r}
+
+leafletOutput("townMap", height="650px")
+
+```
+
+```{r}
+
+#| context: server
+
+# <-- all of this runs server-side
+
+# 1) render the full map initially
+output$townMap <- renderLeaflet({
+  leaflet(towns_sf) %>%
+    addMapboxTiles(style_id="streets-v11", username="mapbox") %>%
+    addPolygons(
+      group       = "towns",
+      fillColor   = ~ pal_bin(mcas_color),
+      fillOpacity = 0.15,
+      color       = "black",
+      weight      = 1,
+      popup       = ~ paste0(
+        "<strong>Town:</strong> ", town_name, "<br/>",
+        "<strong>District:</strong> ", DIST_NAME, "<br/>",
+        "<strong>Home Price:</strong> $", round(current_typ_home_value/1000),"K","<br/>",
+        "<strong>Price Δ:</strong> ",
+          ifelse(one_year_price_change>0, paste0("+",one_year_price_change), one_year_price_change),"%<br/>",
+        "<strong>School Size:</strong> ", school_size_est, "<br/>",
+        "<strong>MCAS Percentile:</strong> ",
+          ifelse(is.na(exceed_mcas_percentile),"NA",paste0(exceed_mcas_percentile,"%"))
+      )
+    ) %>%
+    addLegend(
+      position = "bottomleft",
+      colors   = "#ffc107",
+      labels   = "Top 20% MCAS Districts",
+      title    = "<div style='font-size:13px;'>School Quality</div>",
+      opacity  = 0.9,
+      labFormat= labelFormat(textsize="10px")
+    )
+})
+
+# 2) observe the selectInput and zoom/highlight
+observeEvent(input$town_sel, {
+  sf_sel <- filter(towns_sf, town_name == input$town_sel)
+  bb     <- st_bbox(sf_sel)
+  leafletProxy("townMap") %>%
+    clearGroup("highlight") %>%
+    addPolygons(
+      data    = sf_sel,
+      group   = "highlight",
+      color   = "red",
+      weight  = 3,
+      fill    = FALSE
+    ) %>%
+    flyToBounds(bb$xmin, bb$ymin, bb$xmax, bb$ymax)
+})
+
+
+```
 
 ```{=html}
 
