@@ -8,14 +8,12 @@ library(tigris)
 library(readr)
 library(sf)
 library(rsconnect)
-source("libraries.R")
-library("shiny")
-# usethis::edit_r_environ()
 
-# Sys.getenv("CENSUS_API_KEY")
-# Sys.getenv("MAPBOX_PUBLIC_TOKEN")
-# Sys.getenv("MAPBOX_TOKEN_SHINY")
-# Sys.getenv("MAPBOX_TOKEN_LOCAL")
+# pull in both tokens
+mapbox_public <- Sys.getenv("MAPBOX_TOKEN_PUBLIC")
+mapbox_shiny <- Sys.getenv("MAPBOX_TOKEN_SHINY")
+mapbox_shiny <- Sys.getenv("MAPBOX_TOKEN_SHINY")
+# Sys.setenv(MAPBOX_TOKEN = Sys.getenv("MAPBOX_TOKEN_LOCAL"))
 
 # ---- Data Preparation ----n# Ensure caching of tigris shapes\options(tigris_use_cache = TRUE)
 
@@ -153,3 +151,5 @@ server <- function(input, output, session) {
 
 # ---- Run App ----
 shinyApp(ui, server)
+
+
