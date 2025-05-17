@@ -1,21 +1,28 @@
-# app.R: Massachusetts Town Explorer Shiny App
-
-# ---- Load libraries ----
 library(shiny)
 library(leaflet)
+library(mapboxapi)
 library(dplyr)
 library(tigris)
 library(readr)
 library(sf)
 library(rsconnect)
-source("libraries.R")
-library("shiny")
-# usethis::edit_r_environ()
+library(tidyverse)
+library(styler)
+library(tidycensus)
+library(ggplot2)
+library(usethis)
+library(scales)
+library(flexdashboard)
+library(readxl)
+library(openxlsx)
+library(fuzzyjoin)
+library(leaflet.extras)
 
-# Sys.getenv("CENSUS_API_KEY")
-# Sys.getenv("MAPBOX_PUBLIC_TOKEN")
-# Sys.getenv("MAPBOX_TOKEN_SHINY")
-# Sys.getenv("MAPBOX_TOKEN_LOCAL")
+# usethis::edit_r_environ()
+# mapbox_public_token <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
+# mapbox_local_token  <- Sys.getenv("MAPBOX_TOKEN_LOCAL")
+# Sys.setenv(MAPBOX_TOKEN = mapbox_token)
+mapbox_token  <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 
 # ---- Data Preparation ----n# Ensure caching of tigris shapes\options(tigris_use_cache = TRUE)
 
@@ -105,7 +112,9 @@ server <- function(input, output, session) {
   # Render the full map initially
   output$townMap <- renderLeaflet({
     leaflet(towns_sf) %>%
-      addMapboxTiles(style_id = "streets-v11", username = "mapbox") %>%
+      addMapboxTiles(style_id = "streets-v11",
+                     username = "mapbox",
+                     access_token = Sys.getenv("MAPBOX_PUBLIC_TOKEN")) %>%
       addPolygons(
         group       = "towns",
         label       = ~ town_name,                 

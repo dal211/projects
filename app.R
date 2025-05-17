@@ -11,9 +11,7 @@ library(rsconnect)
 
 # pull in both tokens
 mapbox_public <- Sys.getenv("MAPBOX_TOKEN_PUBLIC")
-mapbox_shiny <- Sys.getenv("MAPBOX_TOKEN_SHINY")
-mapbox_shiny <- Sys.getenv("MAPBOX_TOKEN_SHINY")
-# Sys.setenv(MAPBOX_TOKEN = Sys.getenv("MAPBOX_TOKEN_LOCAL"))
+# mapbox_shiny <- Sys.getenv("MAPBOX_TOKEN_SHINY")
 
 # ---- Data Preparation ----n# Ensure caching of tigris shapes\options(tigris_use_cache = TRUE)
 
