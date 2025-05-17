@@ -1,17 +1,29 @@
-# app.R: Massachusetts Town Explorer Shiny App
-
-# ---- Load libraries ----
 library(shiny)
 library(leaflet)
+library(mapboxapi)
 library(dplyr)
 library(tigris)
 library(readr)
 library(sf)
 library(rsconnect)
+library(tidyverse)
+library(styler)
+library(tidycensus)
+library(ggplot2)
+library(usethis)
+library(scales)
+library(flexdashboard)
+library(readxl)
+library(openxlsx)
+library(fuzzyjoin)
+library(leaflet.extras)
+library(leaflet.mapboxgl)
 
-# pull in both tokens
-mapbox_public <- Sys.getenv("MAPBOX_TOKEN_PUBLIC")
-# mapbox_shiny <- Sys.getenv("MAPBOX_TOKEN_SHINY")
+# usethis::edit_r_environ()
+# mapbox_public_token <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
+# mapbox_local_token  <- Sys.getenv("MAPBOX_TOKEN_LOCAL")
+# Sys.setenv(MAPBOX_TOKEN = mapbox_token)
+mapbox_token  <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 
 # ---- Data Preparation ----n# Ensure caching of tigris shapes\options(tigris_use_cache = TRUE)
 
@@ -101,7 +113,19 @@ server <- function(input, output, session) {
   # Render the full map initially
   output$townMap <- renderLeaflet({
     leaflet(towns_sf) %>%
-      addMapboxTiles(style_id = "streets-v11", username = "mapbox") %>%
+      # addMapboxTiles(style_id = "streets-v11",
+      #                username = "mapbox",
+      #                access_token = Sys.getenv("MAPBOX_PUBLIC_TOKEN")) %>%
+      # addMapboxGL(
+      #   style       = "mapbox://styles/mapbox/streets-v11",
+      #   accessToken = Sys.getenv("MAPBOX_PUBLIC_TOKEN")
+      # ) %>%      
+      addTiles(
+        urlTemplate = paste0(
+          "https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?",
+          "access_token=", Sys.getenv("MAPBOX_PUBLIC_TOKEN")
+        ),
+        options = tileOptions(tileSize = 512, zoomOffset = -1)) %>%       
       addPolygons(
         group       = "towns",
         label       = ~ town_name,                 
@@ -149,5 +173,3 @@ server <- function(input, output, session) {
 
 # ---- Run App ----
 shinyApp(ui, server)
-
-

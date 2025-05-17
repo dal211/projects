@@ -5,6 +5,6 @@ account: richardgasquet
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 14764804
-bundleId: 10299277
+bundleId: 10299510
 url: https://richardgasquet.shinyapps.io/town_explorer/
 version: 1
