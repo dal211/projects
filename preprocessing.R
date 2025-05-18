@@ -1,0 +1,84 @@
+cat("===== LOADED UPDATED APP.R @", Sys.time(), "=====\n")
+
+library(shiny)
+library(leaflet)
+library(mapboxapi)
+library(dplyr)
+library(tigris)
+library(readr)
+library(sf)
+library(rsconnect)
+library(tidyverse)
+library(styler)
+library(tidycensus)
+library(ggplot2)
+library(usethis)
+library(scales)
+library(flexdashboard)
+library(readxl)
+library(openxlsx)
+library(fuzzyjoin)
+library(leaflet.extras)
+library(leaflet.mapboxgl)
+
+# usethis::edit_r_environ()
+# mapbox_public_token <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
+# mapbox_local_token  <- Sys.getenv("MAPBOX_TOKEN_LOCAL")
+# Sys.setenv(MAPBOX_TOKEN = mapbox_token)
+mapbox_token  <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
+
+# ---- Data Preparation ----n# Ensure caching of tigris shapes\options(tigris_use_cache = TRUE)
+
+# MCAS data
+mcas <- read_csv("data/MCAS_Achievement_Results_20250415.csv") %>%
+  filter(
+    SY == 2024,
+    STUGRP == "White",
+    ORG_NAME != "State",
+    TEST_GRADE == "10",
+    ORG_TYPE == "Public School District"
+  ) %>%
+  select(SY:STUGRP, STU_CNT, E_CNT, AVG_SCALED_SCORE)
+
+mcas_agg <- mcas %>%
+  group_by(DIST_NAME) %>%
+  summarize(
+    stu_cnt         = median(STU_CNT),
+    exceed_cnt      = round(weighted.mean(E_CNT, w = STU_CNT), 0),
+    avg_score       = round(weighted.mean(AVG_SCALED_SCORE, w = STU_CNT), 0)
+  ) %>%
+  mutate(
+    exceed_perct            = round(exceed_cnt / stu_cnt, 3),
+    school_size_est         = stu_cnt * 4,
+    exceed_mcas_percentile  = round(percent_rank(exceed_perct) * 100, 1)
+  )
+
+# School district crosswalk
+town_school_dist_xwalk <- read_csv("data/final_school_districts_mapping_v1.csv") %>%
+  distinct() %>%
+  arrange(town_name) %>%
+  group_by(town_name) %>%
+  slice(1)
+
+# Zillow three-bedroom price change
+price_town_mapping <- read_csv("data/Mapping_Table_with_Exact_Match_Column2.csv")
+three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv") %>%
+  filter(State == "MA") %>%
+  select(RegionName, last_col(offset = 12), last_col()) %>%
+  mutate(one_year_price_change = round((`3/31/2025` - `3/31/2024`) / `3/31/2024` * 100, 1)) %>%
+  rename(
+    current_typ_home_value = `3/31/2025`,
+    lst_yr_typ_home_value = `3/31/2024`
+  )
+
+# Town geometry and joins
+towns_sf <- tigris::county_subdivisions(state = "MA", cb = TRUE, year = 2023) %>%
+  rename(town_name = NAME) %>%
+  left_join(town_school_dist_xwalk, by = "town_name") %>%
+  left_join(mcas_agg,              by = c("DIST_NAME")) %>%
+  left_join(price_town_mapping,    by = "town_name") %>%
+  left_join(three_bed_home_price_zil, by = c("region_name" = "RegionName")) %>%
+  st_transform(4326) %>%                      # ensure WGS84
+  mutate(mcas_color = if_else(exceed_mcas_percentile > 70, 1, 0))
+
+# saveRDS(towns_sf, "data/towns_sf.rds")
