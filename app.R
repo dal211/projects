@@ -2,7 +2,6 @@ cat("===== LOADED UPDATED APP.R @", Sys.time(), "=====\n")
 
 library(shiny)
 library(leaflet)
-# library(mapboxapi)
 library(dplyr)
 library(tigris)
 library(readr)
@@ -21,14 +20,6 @@ library(fuzzyjoin)
 library(leaflet.extras)
 library(leaflet.mapboxgl)
 library(tidytransit)
-
-# usethis::edit_r_environ()
-# mapbox_public_token <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
-# mapbox_local_token  <- Sys.getenv("MAPBOX_TOKEN_LOCAL")
-# mapbox_token  <- Sys.getenv("MAPBOX_TOKEN_SHINY")
-
-# Sys.setenv(MAPBOX_TOKEN_SHINY = "pk.eyJ1IjoiZGFsMjExMSIsImEiOiJjbWF0MXplNGowcnA4MmtweWY2cmZ2eHZ1In0.voikowvEC3PN932ab59quA")
-# message("→ MAPBOX_TOKEN_SHINY is: ", Sys.getenv("MAPBOX_TOKEN_SHINY"))
 
 towns_sf <- readRDS("data/towns_sf.rds")
 towns_sf <- st_simplify(towns_sf, dTolerance = 100) 
@@ -69,22 +60,9 @@ server <- function(input, output, session) {
   # Render the full map initially
   output$townMap <- renderLeaflet({
     leaflet(towns_sf) %>%
-      # addMapboxTiles(style_id = "streets-v11",
-      #                username = "mapbox",
-      #                access_token = Sys.getenv("MAPBOX_PUBLIC_TOKEN")) %>%
-      # addMapboxGL(
-      #   style       = "mapbox://styles/mapbox/streets-v11",
-      #   accessToken = Sys.getenv("MAPBOX_PUBLIC_TOKEN")
-      # ) %>%      
-      # addTiles(
-      #   urlTemplate = paste0(
-      #     "https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?",
-      #     access_token = Sys.getenv("MAPBOX_TOKEN_SHINY")
-      #   ),
-      #   options = tileOptions(tileSize = 512, zoomOffset = -1)) %>%
       addProviderTiles("OpenStreetMap") %>%
       addPolylines(
-        data   = shapes_sf,
+        data   = commuter_shapes_sf,
         color  = "purple",
         weight = 2,
         label  = ~shape_id
@@ -98,11 +76,11 @@ server <- function(input, output, session) {
         weight      = 1,
         popup       = ~ paste0(
           "<strong>Town:</strong> ", town_name, "<br/>",
-          "<strong>District:</strong> ", DIST_NAME, "<br/>",
+          "<strong>School District:</strong> ", DIST_NAME, "<br/>",
           "<strong>Home Price (3 bed):</strong> $", round(current_typ_home_value/1000),"K","<br/>",
-          "<strong>Price Δ:</strong> ",
+          "<strong>Price Δ (YoY):</strong> ",
           ifelse(one_year_price_change>0, paste0("+",one_year_price_change), one_year_price_change),"%<br/>",
-          "<strong>School Size:</strong> ", school_size_est, "<br/>",
+          "<strong>High School Size:</strong> ", school_size_est, "<br/>",
           "<strong>MCAS Percentile:</strong> ",
           ifelse(is.na(exceed_mcas_percentile),"NA",paste0(exceed_mcas_percentile,"%"))
         )
