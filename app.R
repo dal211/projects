@@ -2,7 +2,7 @@ cat("===== LOADED UPDATED APP.R @", Sys.time(), "=====\n")
 
 library(shiny)
 library(leaflet)
-library(mapboxapi)
+# library(mapboxapi)
 library(dplyr)
 library(tigris)
 library(readr)
@@ -20,17 +20,19 @@ library(openxlsx)
 library(fuzzyjoin)
 library(leaflet.extras)
 library(leaflet.mapboxgl)
+library(tidytransit)
 
 # usethis::edit_r_environ()
 # mapbox_public_token <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 # mapbox_local_token  <- Sys.getenv("MAPBOX_TOKEN_LOCAL")
 # mapbox_token  <- Sys.getenv("MAPBOX_TOKEN_SHINY")
 
-Sys.setenv(MAPBOX_TOKEN_SHINY = "pk.eyJ1IjoiZGFsMjExMSIsImEiOiJjbWF0MXplNGowcnA4MmtweWY2cmZ2eHZ1In0.voikowvEC3PN932ab59quA")
-message("→ MAPBOX_TOKEN_SHINY is: ", Sys.getenv("MAPBOX_TOKEN_SHINY"))
+# Sys.setenv(MAPBOX_TOKEN_SHINY = "pk.eyJ1IjoiZGFsMjExMSIsImEiOiJjbWF0MXplNGowcnA4MmtweWY2cmZ2eHZ1In0.voikowvEC3PN932ab59quA")
+# message("→ MAPBOX_TOKEN_SHINY is: ", Sys.getenv("MAPBOX_TOKEN_SHINY"))
 
 towns_sf <- readRDS("data/towns_sf.rds")
 towns_sf <- st_simplify(towns_sf, dTolerance = 100) 
+commuter_shapes_sf <- readRDS("data/shapes_sf.rds")
 
 # Color palette for exceed percentile
 pal_bin <- colorFactor(palette = c("transparent", "#ffc107"), domain = c(0, 1), na.color = "transparent")
@@ -80,7 +82,13 @@ server <- function(input, output, session) {
       #     access_token = Sys.getenv("MAPBOX_TOKEN_SHINY")
       #   ),
       #   options = tileOptions(tileSize = 512, zoomOffset = -1)) %>%
-      addProviderTiles("OpenStreetMap") %>%      
+      addProviderTiles("OpenStreetMap") %>%
+      addPolylines(
+        data   = shapes_sf,
+        color  = "purple",
+        weight = 2,
+        label  = ~shape_id
+      ) %>%
       addPolygons(
         group       = "towns",
         label       = ~ town_name,                 
