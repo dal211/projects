@@ -17,8 +17,6 @@ library(flexdashboard)
 library(readxl)
 library(openxlsx)
 library(fuzzyjoin)
-library(leaflet.extras)
-library(leaflet.mapboxgl)
 library(tidytransit)
 
 towns_sf <- readRDS("data/towns_sf.rds")
@@ -89,41 +87,43 @@ server <- function(input, output, session) {
   message("🚀 app starting — reaching server()")
   # Render the full map initially
   output$townMap <- renderLeaflet({
-    leaflet(towns_sf) %>%
-      addProviderTiles("OpenStreetMap") %>%
-      addPolylines(
-        data   = commuter_shapes_sf,
-        color  = "purple",
-        weight = 2,
-        label  = ~shape_id
-      ) %>%
-      addPolygons(
-        group       = "towns",
-        label       = ~ town_name,                 
-        fillColor   = ~ pal_bin(mcas_color),
-        fillOpacity = 0.15,
-        color       = "black",
-        weight      = 1,
-        popup       = ~ paste0(
-          "<strong>Town:</strong> ", town_name, "<br/>",
-          "<strong>School District:</strong> ", DIST_NAME, "<br/>",
-          "<strong>Home Price (3 bed):</strong> $", round(current_typ_home_value/1000),"K","<br/>",
-          "<strong>Price Δ (YoY):</strong> ",
-          ifelse(one_year_price_change>0, paste0("+",one_year_price_change), one_year_price_change),"%<br/>",
-          "<strong>High School Size:</strong> ", school_size_est, "<br/>",
-          "<strong>MCAS Percentile:</strong> ",
-          ifelse(is.na(exceed_mcas_percentile),"NA",paste0(exceed_mcas_percentile,"%"))
-        )
-      ) %>%
-      addLegend(
-        position = "bottomleft",
-        colors   = "#ffc107",
-        labels   = "Top 20% MCAS Districts",
-        title    = "<div style='font-size:13px;'>School Quality</div>",
-        opacity  = 0.9,
-        labFormat= labelFormat(textsize = "10px")
+  leaflet(towns_sf) %>%
+    addProviderTiles("OpenStreetMap") %>%
+    addPolylines(
+      data   = commuter_shapes_sf,
+      color  = "purple",
+      weight = 2,
+      label  = ~shape_id
+    ) %>%
+    addPolygons(
+      group = "towns",
+      label = ~town_name,
+      fillColor = ~ pal_bin(mcas_color),
+      fillOpacity = 0.15,
+      color = "black",
+      weight = 1,
+      popup = ~ paste0(
+        "<strong>Town:</strong> ", town_name, "<br/>",
+        "<strong>School District:</strong> ", DIST_NAME, "<br/>",
+        "<strong>Home Price (3 bed):</strong> $", round(current_typ_home_value / 1000), "K", "<br/>",
+        "<strong>Price Δ (YoY):</strong> ",
+        ifelse(one_year_price_change > 0, paste0("+", one_year_price_change), one_year_price_change), "%<br/>",
+        "<strong>High School Size:</strong> ", school_size_est, "<br/>",
+        "<strong>MCAS Percentile:</strong> ",
+        ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>",
+        "<strong>🏠:</strong> ",
+        paste(dist_to_croton_mi, "miles", "(🕒:", round((dist_to_croton_mi/70)*60), "min)")
       )
-  })
+    ) %>%
+    addLegend(
+      position = "bottomleft",
+      colors = "#ffc107",
+      labels = "Top 20% MCAS Districts",
+      title = "<div style='font-size:13px;'>School Quality</div>",
+      opacity = 0.9,
+      labFormat = labelFormat(textsize = "10px")
+    )
+})
   
   # Zoom and highlight selected town
   observeEvent(input$town_sel, {

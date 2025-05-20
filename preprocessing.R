@@ -25,7 +25,7 @@ library(leaflet.mapboxgl)
 # mapbox_public_token <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 # mapbox_local_token  <- Sys.getenv("MAPBOX_TOKEN_LOCAL")
 # Sys.setenv(MAPBOX_TOKEN = mapbox_token)
-mapbox_token  <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
+# mapbox_token  <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
 
 # ---- Data Preparation ----n# Ensure caching of tigris shapes\options(tigris_use_cache = TRUE)
 
@@ -78,7 +78,41 @@ towns_sf <- tigris::county_subdivisions(state = "MA", cb = TRUE, year = 2023) %>
   left_join(mcas_agg,              by = c("DIST_NAME")) %>%
   left_join(price_town_mapping,    by = "town_name") %>%
   left_join(three_bed_home_price_zil, by = c("region_name" = "RegionName")) %>%
-  st_transform(4326) %>%                      # ensure WGS84
+  st_transform(4326) %>%
   mutate(mcas_color = if_else(exceed_mcas_percentile > 70, 1, 0))
 
+# Croton geometry
+# 1. Define Croton as a POINT (lon, lat) in the same CRS as your towns_sf:
+croton_pt <- st_sfc(
+  st_point(c(-73.891743, 41.218139)),
+  crs = 4326
+)
+
+st_crs(towns_sf)
+#> Coordinate Reference System:
+#>   EPSG:4326 
+#>   proj4string: "+proj=longlat +datum=WGS84 +no_defs"
+
+st_crs(croton_pt)
+#> Coordinate Reference System:
+#>   EPSG:4326 
+#>   proj4string: "+proj=longlat +datum=WGS84 +no_defs"
+
+# 2. Compute each town’s centroid and distance to Croton (in km):
+towns_sf <- towns_sf %>%
+  mutate(
+    centroid = st_centroid(geometry),
+    dist_to_croton_mi = 
+      round(as.numeric(
+        st_distance(centroid, croton_pt)
+      ) / 1000 / 1.60934
+  ))
+
+# 3. Inspect the first few:
+towns_sf %>% 
+  select(town_name, dist_to_croton_mi) %>% 
+  arrange(dist_to_croton_mi) %>% 
+  head()
+
 # saveRDS(towns_sf, "data/towns_sf.rds")
+
