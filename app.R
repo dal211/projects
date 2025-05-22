@@ -112,7 +112,7 @@ server <- function(input, output, session) {
         "<strong>MCAS Percentile:</strong> ",
         ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>",
         "<strong>🏠:</strong> ",
-        paste(dist_to_croton_mi, "miles", "(🕒:", round((dist_to_croton_mi/70)*60), "min)")
+        paste(round(dist_mi), "miles", "(🕒:", round((dist_mi/65)*60), "min)")
       )
     ) %>%
     addLegend(

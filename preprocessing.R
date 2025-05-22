@@ -106,13 +106,35 @@ towns_sf <- towns_sf %>%
       round(as.numeric(
         st_distance(centroid, croton_pt)
       ) / 1000 / 1.60934
-  ))
+  )) %>% 
+  mutate(
+    dist_to_croton_mi = dist_to_croton_mi + 50
+  )
 
-# 3. Inspect the first few:
-towns_sf %>% 
-  select(town_name, dist_to_croton_mi) %>% 
-  arrange(dist_to_croton_mi) %>% 
-  head()
+###############################
+# Calculate driving distances #
+###############################
 
-# saveRDS(towns_sf, "data/towns_sf.rds")
+# 2. swap in your 'centroid' column as the active geometry
+towns_centroids <- st_set_geometry(towns_sf, "centroid")
+
+# 3a. get driving DISTANCES (meters)
+tbl_dist <- osrmTable(
+  src     = towns_centroids,
+  dst     = croton_sf,
+  measure = "distance"
+)
+
+# 3b. get driving DURATIONS (seconds) – this is also the default
+tbl_dur <- osrmTable(
+  src     = towns_centroids,
+  dst     = croton_sf,
+  measure = "duration"
+)
+
+# 4. pull out the one‐column vectors
+towns_sf$dist_m <- tbl_dist$distances[, 1]
+towns_sf$dist_mi <- towns_sf$dist_m / 1609.34  # meters to miles
+
+saveRDS(towns_sf, "data/towns_sf.rds")
 
