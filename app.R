@@ -51,6 +51,14 @@ ui <- fluidPage(
                height: 100vh;
                padding-top: 1rem;
                padding-bottom: 1rem;",
+
+      helpText(
+        tags$b("Where should I live?")
+      ),
+      
+      helpText(
+        tags$p("Click on a town for detailed information.")
+      ),
       
       # town picker
       selectInput(
@@ -89,6 +97,7 @@ server <- function(input, output, session) {
   output$townMap <- renderLeaflet({
   leaflet(towns_sf) %>%
     addProviderTiles("OpenStreetMap") %>%
+    setView(lng = -71.7, lat = 42.2, zoom = 8.49) %>%      
     addPolylines(
       data   = commuter_shapes_sf,
       color  = "purple",
