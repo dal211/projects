@@ -28,66 +28,58 @@ pal_bin <- colorFactor(palette = c("transparent", "#ffc107"), domain = c(0, 1), 
 
 # ---- UI ----
 ui <- fluidPage(
-  
-  # 1) Kill the default Shiny padding/margins so everything can go edge-to-edge
   tags$head(
     tags$style(HTML("
-      body, .container-fluid {
-        padding: 0;
-        margin: 0;
+      .spaced > * {
+        margin-bottom: 2rem;
+      }
+      .spaced > *:last-child {
+        margin-bottom: 0;
       }
     "))
   ),
   
-  # 2) SidebarLayout with a skinny sidebar and full-view map
   sidebarLayout(
-    
-    # narrow sidebar (2 cols) with just your selector + link
     sidebarPanel(
       width = 2,
-      style = "display: flex;
-               flex-direction: column;
-               justify-content: space-between;
-               height: 100vh;
-               padding-top: 1rem;
-               padding-bottom: 1rem;",
-
-      helpText(
-        tags$b("Where should I live?")
-      ),
+      style = "
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100vh;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+      ",
       
-      helpText(
-        tags$p("Click on a town for detailed information.")
-      ),
-      
-      # town picker
-      selectInput(
-        inputId = "town_sel",
-        label   = "Pick a town:",
-        choices = sort(unique(towns_sf$town_name)),
-        selected= "Boston"
-      ),
-      
-      # GitHub link at bottom
       tags$div(
-        tags$a(
-          "Visit my GitHub Repo",
-          href   = "https://github.com/dal211/projects",
-          target = "_blank",
-          style  = "font-size:14px;"
-        ),
-        style = "text-align: center; margin-bottom: 1rem;"
+        class = "spaced",
+        tags$h4("Where should I live?"),
+        tags$p("Click on a town for detailed information."),
+        selectInput(
+          "town_sel", "Pick a town:",
+          choices  = sort(unique(towns_sf$town_name)),
+          selected = "Boston"
+        )
+      ),
+      
+      tags$div(
+        style = "text-align: center; margin: 0; padding: 0;",
+        tags$a("Visit my GitHub Repo",
+               href   = "https://github.com/dal211/projects",
+               target = "_blank",
+               style  = "font-size:14px;"
+        )
       )
     ),
     
-    # mainPanel now 10 cols, zero internal padding, full-viewport height
     mainPanel(
       width = 10,
-      style = "padding: 0; margin: 0; height: 100vh;",
-      leafletOutput("townMap", width = "100%", height = "100%")
+      style = "padding:0; margin:0; height:100vh;",
+      leafletOutput("townMap", width="100%", height="100%")
     )
   )
 )
+
 
 
 # ---- Server ----
