@@ -5,6 +5,6 @@ account: richardgasquet
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 14822762
-bundleId: 10340684
+bundleId: 10340740
 url: https://richardgasquet.shinyapps.io/findmytown/
 version: 1

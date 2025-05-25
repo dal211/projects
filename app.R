@@ -51,6 +51,7 @@ ui <- fluidPage(
         padding-bottom: 2rem;
       ",
       
+      # Top section
       tags$div(
         class = "spaced",
         tags$h4("Where should I live?"),
@@ -58,22 +59,23 @@ ui <- fluidPage(
           "town_sel", "Pick a town:",
           choices  = sort(unique(towns_sf$town_name)),
           selected = "Boston"
-        ),        
+        ),
         tags$p("Click on a town for detailed information."),
-        br(),
-        tags$small(
-          style = "color: #555; display: block; margin-top: -1rem;",
-          HTML("<strong>School Quality Index</strong><br>
-         Combines MCAS and AP performance. Higher = stronger academics & college readiness.")
-        )
+        br()
       ),
       
+      # Bottom section
       tags$div(
-        style = "text-align: center; margin: 0; padding: 0;",
-        tags$a("Visit my GitHub Repo",
-               href   = "https://github.com/dal211/projects",
-               target = "_blank",
-               style  = "font-size:14px;"
+        style = "margin: 0; padding: 0; text-align: left;",
+        
+        # GitHub link centered
+        tags$div(
+          style = "text-align: center;",
+          tags$a("Visit my GitHub Repo",
+                 href   = "https://github.com/dal211/projects",
+                 target = "_blank",
+                 style  = "font-size:14px;"
+          )
         )
       )
     ),
@@ -81,12 +83,10 @@ ui <- fluidPage(
     mainPanel(
       width = 10,
       style = "padding:0; margin:0; height:100vh;",
-      leafletOutput("townMap", width="100%", height="100%")
+      leafletOutput("townMap", width = "100%", height = "100%")
     )
   )
 )
-
-
 
 # ---- Server ----
 server <- function(input, output, session) {
@@ -125,7 +125,7 @@ server <- function(input, output, session) {
     addLegend(
       position = "bottomleft",
       colors = "#ffc107",
-      labels = "At least 70th percentile performing school districts",
+      labels = "At least 70th percentile MCAS and AP scores",
       title = "<div style='font-size:13px;'>School Quality</div>",
       opacity = 0.9,
       labFormat = labelFormat(textsize = "10px")
