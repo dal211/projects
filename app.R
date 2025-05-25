@@ -125,7 +125,7 @@ server <- function(input, output, session) {
     addLegend(
       position = "bottomleft",
       colors = "#ffc107",
-      labels = "Top performing school districts",
+      labels = "At least 70th percentile performing school districts",
       title = "<div style='font-size:13px;'>School Quality</div>",
       opacity = 0.9,
       labFormat = labelFormat(textsize = "10px")
