@@ -20,6 +20,7 @@ library(openxlsx)
 library(fuzzyjoin)
 library(leaflet.extras)
 library(leaflet.mapboxgl)
+library(osrm)
 
 # usethis::edit_r_environ()
 # mapbox_public_token <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
@@ -41,22 +42,23 @@ mcas <- read_csv("data/MCAS_Achievement_Results_20250415.csv") %>%
   select(SY:STUGRP, STU_CNT, E_CNT, AVG_SCALED_SCORE)
 
 mcas_agg <- mcas %>%
-  group_by(DIST_NAME) %>%
+  group_by(DIST_CODE, DIST_NAME) %>%
   summarize(
     stu_cnt         = median(STU_CNT),
     exceed_cnt      = round(weighted.mean(E_CNT, w = STU_CNT), 0),
     avg_score       = round(weighted.mean(AVG_SCALED_SCORE, w = STU_CNT), 0)
   ) %>%
+  ungroup() %>% 
   mutate(
     exceed_perct            = round(exceed_cnt / stu_cnt, 3),
-    school_size_est         = stu_cnt * 4,
-    exceed_mcas_percentile  = round(percent_rank(exceed_perct) * 100, 1)
+    school_size_est         = stu_cnt * 4
+    # exceed_mcas_percentile  = percent_rank(exceed_perct)
   )
 
 ap_scores <- read_csv("data/Advanced_Placement__AP__Performance_20250525.csv") %>% 
   filter(ORG_TYPE == "District", SUBJ_CAT == "All Subjects", STU_GRP == "All Students", SY == "2024") %>% 
-  select(SY, DIST_CODE, DIST_NAME, PCT_3_5) %>% 
-  mutate(passing_perctile = percent_rank(PCT_3_5))
+  select(SY, DIST_CODE, PCT_3_5)
+  # mutate(passing_ap_perctile = percent_rank(PCT_3_5))
 
 # School district crosswalk
 town_school_dist_xwalk <- read_csv("data/final_school_districts_mapping_v1.csv") %>%
@@ -83,8 +85,8 @@ towns_sf <- tigris::county_subdivisions(state = "MA", cb = TRUE, year = 2023) %>
   left_join(mcas_agg,              by = c("DIST_NAME")) %>%
   left_join(price_town_mapping,    by = "town_name") %>%
   left_join(three_bed_home_price_zil, by = c("region_name" = "RegionName")) %>%
-  st_transform(4326) %>%
-  mutate(mcas_color = if_else(exceed_mcas_percentile > 70, 1, 0))
+  left_join(ap_scores, by = "DIST_CODE") %>%  
+  st_transform(4326)
 
 # Croton geometry
 # 1. Define Croton as a POINT (lon, lat) in the same CRS as your towns_sf:
@@ -113,7 +115,11 @@ towns_sf <- towns_sf %>%
       ) / 1000 / 1.60934
   )) %>% 
   mutate(
-    dist_to_croton_mi = dist_to_croton_mi + 50
+    dist_to_croton_mi = dist_to_croton_mi + 50,
+    mcas_rank = percent_rank(exceed_perct),
+    ap_rank = percent_rank(PCT_3_5),    
+    normalized_school_score = round((.5*mcas_rank + .5*ap_rank)*100,1),
+    school_color = if_else(normalized_school_score > 70, 1, 0)
   )
 
 ###############################

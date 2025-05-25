@@ -54,11 +54,17 @@ ui <- fluidPage(
       tags$div(
         class = "spaced",
         tags$h4("Where should I live?"),
-        tags$p("Click on a town for detailed information."),
         selectInput(
           "town_sel", "Pick a town:",
           choices  = sort(unique(towns_sf$town_name)),
           selected = "Boston"
+        ),        
+        tags$p("Click on a town for detailed information."),
+        br(),
+        tags$small(
+          style = "color: #555; display: block; margin-top: -1rem;",
+          HTML("<strong>School Quality Index</strong><br>
+         Combines MCAS and AP performance. Higher = stronger academics & college readiness.")
         )
       ),
       
@@ -99,7 +105,7 @@ server <- function(input, output, session) {
     addPolygons(
       group = "towns",
       label = ~town_name,
-      fillColor = ~ pal_bin(mcas_color),
+      fillColor = ~ pal_bin(school_color),
       fillOpacity = 0.15,
       color = "black",
       weight = 1,
@@ -110,16 +116,16 @@ server <- function(input, output, session) {
         "<strong>Price Δ (YoY):</strong> ",
         ifelse(one_year_price_change > 0, paste0("+", one_year_price_change), one_year_price_change), "%<br/>",
         "<strong>High School Size:</strong> ", school_size_est, "<br/>",
-        "<strong>MCAS Percentile:</strong> ",
-        ifelse(is.na(exceed_mcas_percentile), "NA", paste0(exceed_mcas_percentile, "%")), "<br/>",
-        "<strong>🏠:</strong> ",
-        paste(round(dist_mi), "miles", "(🕒:", round((dist_mi/65)*60), "min)")
+        "<strong>School Rating:</strong> ",
+        ifelse(is.na(normalized_school_score), "NA", paste0(normalized_school_score, "%")), "<br/>",
+        "<strong>To Croton (NY):</strong> ",
+        paste(round(dist_mi), "miles", "(", round((dist_mi/65)*60), "min)")
       )
     ) %>%
     addLegend(
       position = "bottomleft",
       colors = "#ffc107",
-      labels = "Top 20% MCAS Districts",
+      labels = "Top performing school districts",
       title = "<div style='font-size:13px;'>School Quality</div>",
       opacity = 0.9,
       labFormat = labelFormat(textsize = "10px")
