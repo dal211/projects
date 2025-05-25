@@ -53,6 +53,11 @@ mcas_agg <- mcas %>%
     exceed_mcas_percentile  = round(percent_rank(exceed_perct) * 100, 1)
   )
 
+ap_scores <- read_csv("data/Advanced_Placement__AP__Performance_20250525.csv") %>% 
+  filter(ORG_TYPE == "District", SUBJ_CAT == "All Subjects", STU_GRP == "All Students", SY == "2024") %>% 
+  select(SY, DIST_CODE, DIST_NAME, PCT_3_5) %>% 
+  mutate(passing_perctile = percent_rank(PCT_3_5))
+
 # School district crosswalk
 town_school_dist_xwalk <- read_csv("data/final_school_districts_mapping_v1.csv") %>%
   distinct() %>%
