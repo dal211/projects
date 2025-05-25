@@ -121,15 +121,8 @@ towns_centroids <- st_set_geometry(towns_sf, "centroid")
 # 3a. get driving DISTANCES (meters)
 tbl_dist <- osrmTable(
   src     = towns_centroids,
-  dst     = croton_sf,
+  dst     = croton_pt,
   measure = "distance"
-)
-
-# 3b. get driving DURATIONS (seconds) – this is also the default
-tbl_dur <- osrmTable(
-  src     = towns_centroids,
-  dst     = croton_sf,
-  measure = "duration"
 )
 
 # 4. pull out the one‐column vectors
