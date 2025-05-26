@@ -113,13 +113,11 @@ server <- function(input, output, session) {
         "<strong>Town:</strong> ", town_name, "<br/>",
         "<strong>School District:</strong> ", DIST_NAME, "<br/>",
         "<strong>Home Price (3 bed):</strong> $", round(current_typ_home_value / 1000), "K", "<br/>",
-        "<strong>Price Δ (YoY):</strong> ",
-        ifelse(one_year_price_change > 0, paste0("+", one_year_price_change), one_year_price_change), "%<br/>",
         "<strong>High School Size:</strong> ", school_size_est, "<br/>",
         "<strong>School Rating:</strong> ",
         ifelse(is.na(normalized_school_score), "NA", paste0(normalized_school_score, "%")), "<br/>",
         "<strong>To Croton (NY):</strong> ",
-        paste(round(dist_mi), "miles", "(", round((dist_mi/65)*60), "min)")
+        paste0(round(dist_mi), " miles", " (", round((dist_mi/65)*60), "min)")
       )
     ) %>%
     addLegend(
