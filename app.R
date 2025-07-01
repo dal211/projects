@@ -45,10 +45,11 @@ ui <- fluidPage(
       style = "
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        height: 100vh;
-        padding-top: 2rem;
-        padding-bottom: 2rem;
+        justify-content: flex-start;
+        height: auto;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        overflow-y: auto;
       ",
       
       # Top section
@@ -107,7 +108,7 @@ server <- function(input, output, session) {
       label = ~town_name,
       fillColor = ~ pal_bin(school_color),
       fillOpacity = 0.15,
-      color = "black",
+      color = "grey",
       weight = 1,
       popup = ~ paste0(
         "<strong>Town:</strong> ", town_name, "<br/>",
@@ -123,7 +124,7 @@ server <- function(input, output, session) {
     addLegend(
       position = "bottomleft",
       colors = "#ffc107",
-      labels = "At least 70th percentile MCAS and AP scores",
+      labels = "At least 70th percentile composite of MCAS and AP scores",
       title = "<div style='font-size:13px;'>School Quality</div>",
       opacity = 0.9,
       labFormat = labelFormat(textsize = "10px")
