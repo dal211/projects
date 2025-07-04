@@ -1,0 +1,102 @@
+---
+title: "down_payment_model"
+format: html
+---
+
+```{r}
+
+options(scipen = 9999)
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE
+)
+
+source("code/libraries.R")
+
+```
+
+```{r define variables}
+
+purchase_price <- 700000
+down_payment_pct_small <- .14 # Would lead to a larger loan
+down_payment_pct_med <- .30 # Would lead to a medium loan
+down_payment_pct_large <- .43 # Would lead to a smaller loan
+mortgage_rate <- .05
+loan_term_years <- 30
+invest_return <- .07
+
+```
+
+```{r loan sizes}
+
+loan_small <- purchase_price*(1 - down_payment_pct_large)
+loan_med <- purchase_price*(1 - down_payment_pct_med)
+loan_large <- purchase_price*(1 - down_payment_pct_small)
+
+```
+
+```{r invest difference}
+
+invest_a_lot <- loan_large - loan_small # 200k - Small down payment
+invest_norm <- loan_large - loan_med # 112k - Medium down payment
+invest_small <- loan_med - loan_small # 91k - Small down payment
+
+```
+
+```{r fixed annuity payment}
+
+calc_annual_payment <- function(principal, rate, term_years) {
+  ((rate * principal) * (1 + rate)^term_years) / (((1 + rate)^term_years) - 1)
+}
+
+annual_payment_small <- calc_annual_payment(loan_small, mortgage_rate, loan_term_years)
+mthly_payment_small <- annual_payment_small / 12
+
+annual_payment_med <- calc_annual_payment(loan_med, mortgage_rate, loan_term_years)
+mthly_payment_med <- annual_payment_med / 12
+
+annual_payment_lrge <- calc_annual_payment(loan_large, mortgage_rate, loan_term_years)
+mthly_payment_lrge <- annual_payment_lrge / 12
+
+```
+
+```{r investment}
+
+investment_value <- numeric(loan_term_years)
+investment_value[1] <- loan_large_small
+
+for (i in 2:loan_term_years) {
+  investment_value[i] <- round(investment_value[i - 1] * (1 + invest_return))
+}
+
+```
+
+```{r annual mortgage payment cash flows}
+
+mortgage_cf_small <- rep(annual_payment_small, loan_term_years)
+mortgage_cf_med <- rep(annual_payment_med, loan_term_years)
+mortgage_cf_lrge <- rep(annual_payment_lrge, loan_term_years)
+
+```
+
+```{r compare NPVs}
+
+npv_calc <- function(annual_payment, r ,n) {
+  annual_payment * (1 - ((1+r)^(-n))) / (r)
+}
+
+# Maximize Net NPV = NPV of investments - NPV of mortgage payments
+# Scenario #1: Large loan, lower investments
+invest_small
+loan_large
+
+# Scenario #2: Small loan, higher investments
+invest_a_lot
+loan_small
+
+# Scenario #3: Medium loan, medium investments
+invest_norm
+loan_med
+
+```
+
