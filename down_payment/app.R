@@ -25,11 +25,14 @@ run_scenario <- function(purchase_price, dp_pct, mortgage_rate, loan_term_years,
   )
 }
 
-# UI for a single scenario input block
+# UI for a single scenario input block, with Remove button
 scenarioInputUI <- function(id, label) {
   ns <- NS(id)
   wellPanel(
-    h5(label),
+    fluidRow(
+      column(10, h5(label)),
+      column(2, actionButton(ns("remove"), "✕", class = "btn-sm"))
+    ),
     numericInput(ns("price"), "Home Price", value = 700000, step = 10000),
     sliderInput(ns("dp_pct"), "Down Payment %", min = 0, max = 1, value = 0.2, step = 0.01),
     sliderInput(ns("rate"), "Mortgage Rate", min = 0.01, max = 0.1, value = 0.05, step = 0.001),
@@ -37,9 +40,12 @@ scenarioInputUI <- function(id, label) {
   )
 }
 
-# Server logic for a single scenario input block
-scenarioInputServer <- function(id) {
+# Server logic for a single scenario; calls remove_callback(id) when its button is clicked
+scenarioInputServer <- function(id, remove_callback) {
   moduleServer(id, function(input, output, session) {
+    observeEvent(input$remove, {
+      remove_callback(id)
+    })
     reactive({
       list(
         price = input$price,
@@ -51,7 +57,6 @@ scenarioInputServer <- function(id) {
   })
 }
 
-# UI
 ui <- fluidPage(
   titlePanel("Compare Mortgage Scenarios"),
   fluidRow(
@@ -63,42 +68,63 @@ ui <- fluidPage(
     ),
     column(
       width = 8,
-      # h4("Mortgage Comparison Table"),
       DTOutput("comparison_table")
     )
   )
 )
 
-# Server
 server <- function(input, output, session) {
   max_blocks <- 11
-  rv <- reactiveValues(count = 1)
   
+  # Track active scenario IDs
+  rv <- reactiveValues(ids = c(1))
+  next_id <- reactiveVal(2)
+  
+  # Add scenario
   observeEvent(input$add_scenario, {
-    if (rv$count < max_blocks) rv$count <- rv$count + 1
+    if (length(rv$ids) < max_blocks) {
+      rv$ids <- c(rv$ids, next_id())
+      next_id(next_id() + 1)
+    }
   })
   
+  # Render UI for each active scenario
   output$scenario_inputs <- renderUI({
-    lapply(1:rv$count, function(i) scenarioInputUI(paste0("s", i), paste("Scenario", i)))
-  })
-  
-  scenario_data <- reactive({
-    lapply(1:rv$count, function(i) {
-      scenarioInputServer(paste0("s", i))()
+    lapply(rv$ids, function(i) {
+      scenarioInputUI(paste0("s", i), paste("Scenario", i))
     })
   })
   
+  # Launch server modules, wiring up remove callback
+  scenario_values <- reactiveValues()
+  observe({
+    for (i in rv$ids) {
+      id <- paste0("s", i)
+      if (is.null(scenario_values[[id]])) {
+        scenario_values[[id]] <- scenarioInputServer(id, function(rm_id) {
+          # Only remove if more than one remains
+          if (length(rv$ids) > 1) {
+            rv$ids <- setdiff(rv$ids, as.integer(sub("s", "", rm_id)))
+            scenario_values[[rm_id]] <- NULL
+          }
+        })
+      }
+    }
+  })
+  
+  # Combine all scenarios into one table
   output$comparison_table <- renderDT({
-    dat <- map2(scenario_data(), 1:rv$count, ~{
+    req(rv$ids)
+    dat <- map2(seq_along(rv$ids), rv$ids, ~{
+      inputs <- scenario_values[[paste0("s", .y)]]()
       run_scenario(
-        purchase_price = .x$price,
-        dp_pct = .x$dp_pct,
-        mortgage_rate = .x$rate,
-        loan_term_years = .x$term,
-        scenario_id = .y
+        purchase_price  = inputs$price,
+        dp_pct          = inputs$dp_pct,
+        mortgage_rate   = inputs$rate,
+        loan_term_years = inputs$term,
+        scenario_id     = .x
       )
-    }) %>%
-      bind_rows()
+    }) %>% bind_rows()
     
     datatable(dat, rownames = FALSE, options = list(dom = 't'))
   })
