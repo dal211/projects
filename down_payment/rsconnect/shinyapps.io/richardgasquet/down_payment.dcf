@@ -1,0 +1,10 @@
+name: down_payment
+title:
+username: richardgasquet
+account: richardgasquet
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15038540
+bundleId: 10573107
+url: https://richardgasquet.shinyapps.io/down_payment/
+version: 1

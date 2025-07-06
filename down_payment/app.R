@@ -1,6 +1,7 @@
 library(shiny)
 library(tidyverse)
 library(DT)
+library(rsconnect)
 
 # Loan calculation function
 calc_annual_payment <- function(principal, rate, term_years) {
@@ -18,10 +19,10 @@ run_scenario <- function(purchase_price, dp_pct, mortgage_rate, loan_term_years,
     `DP %` = paste0(round(dp_pct * 100, 1), "%"),
     `DP $` = paste0("$", format(round(dp), big.mark = "," )),
     `Term years` = loan_term_years,
-    `Mortgage rate` = paste0(round(mortgage_rate * 100, 2),"%"),
-    `Mortgage amount` = format(round(loan_amt), big.mark = ","),
-    `Annual payments` = format(round(pmt), big.mark = ","),
-    `Monthly payments` = format(round(pmt / 12), big.mark = ",")
+    `Mortgage interest rate` = paste0(round(mortgage_rate * 100, 2),"%"),
+    `Mortgage amount` = paste0("$",format(round(loan_amt), big.mark = ",")),
+    `Annual payments` = paste0("$",format(round(pmt), big.mark = ",")),
+    `Monthly payments` = paste0("$",format(round(pmt / 12), big.mark = ","))
   )
 }
 
