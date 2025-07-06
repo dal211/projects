@@ -1,3 +1,5 @@
+source("code/libraries.R")
+
 # Loan
 purchase_price <- 700000 # cost of the home
 mortgage_rate <- 0.05 # annual interest rate on the loan
@@ -28,7 +30,7 @@ npv_annuity <- function(annual_payment, rate, term_years) {
 # ─────────────────────────────────────────────────────────────────────────────
 # Function to run ONE scenario (given a down‐payment pct)
 # ─────────────────────────────────────────────────────────────────────────────
-run_scenario <- function(dp_pct, base_dp_pct) {
+run_scenario <- function(dp_pct) {
   # dp_pct      = scenario’s down‐payment_pct
   # base_dp_pct = the “other” DP you compare to (e.g. small or large)
   
@@ -37,26 +39,10 @@ run_scenario <- function(dp_pct, base_dp_pct) {
   
   # 3b. Compute DP and loan principal
   dp <- dp_pct * purchase_price
-  base_dp <- base_dp_pct * purchase_price
   loan_amt <- purchase_price - dp
-  base_loan <- purchase_price - base_dp
   
   # 3c. Annual mortgage payments
   pmt <- calc_annual_payment(loan_amt, mortgage_rate, loan_term_years)
-  base_pmt <- calc_annual_payment(base_loan, mortgage_rate, loan_term_years)
-  
-  # 3d. Cash flows
-  #    t=0  : you keep (base_dp – dp) in your pocket to invest
-  invest0 <- base_dp - dp
-  #    t=1:n: each year you “free up” -(pmt) vs. -(base_pmt), so
-  #            you net + (base_pmt – pmt) to invest
-  ann_save <- base_pmt - pmt
-  invest_flows <- c(invest0, rep(ann_save, loan_term_years))
-  mortgage_flows <- c(-dp, rep(-pmt, loan_term_years))
-  
-  # 3e. Discount both streams at invest_return → PVs
-  pv_invest <- sum(invest_flows / (1 + invest_return)^times)
-  pv_mortgage <- sum(mortgage_flows / (1 + invest_return)^times)
   
   # 3f. Net NPV = PV(invest) + PV(mortgage)
   tibble(
@@ -66,8 +52,8 @@ run_scenario <- function(dp_pct, base_dp_pct) {
     `Loan Term` = loan_term_years,
     `Mortgage rate` = mortgage_rate,
     `Total mortgage` = loan_amt,
-    `Annual mortgage pmts`  = pmt,
-    `Monthly pmt` = pmt / 12
+    `Annual mortgage pmts`  = round(pmt),
+    `Monthly pmts` = round(pmt / 12)
   )
 }
 
@@ -75,8 +61,8 @@ run_scenario <- function(dp_pct, base_dp_pct) {
 # 4. Run and compare scenarios
 # ─────────────────────────────────────────────────────────────────────────────
 results <- bind_rows(
-  # Compare: large DP vs. small DP
-  run_scenario(dp_pct, base_dp_pct),
-  #         medium DP vs. small DP
-  run_scenario(base_dp_pct, dp_pct)
+  run_scenario(dp_pct),
+  run_scenario(base_dp_pct)
 )
+
+kable(results)
