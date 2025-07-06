@@ -14,14 +14,14 @@ run_scenario <- function(purchase_price, dp_pct, mortgage_rate, loan_term_years,
   
   tibble(
     Scenario = paste("Scenario", scenario_id),
-    `Home price` = purchase_price,
-    `Down payment %` = round(dp_pct * 100, 1),
-    `Down payment amt` = round(dp),
-    `Loan Term (yrs)` = loan_term_years,
-    `Mortgage rate` = round(mortgage_rate * 100, 2),
-    `Total mortgage` = round(loan_amt),
-    `Annual mortgage pmts` = round(pmt),
-    `Monthly pmts` = round(pmt / 12)
+    `Home price` = paste0("$",format(purchase_price, big.mark = ",")),
+    `DP %` = paste0(round(dp_pct * 100, 1), "%"),
+    `DP $` = paste0("$", format(round(dp), big.mark = "," )),
+    `Term years` = loan_term_years,
+    `Mortgage rate` = paste0(round(mortgage_rate * 100, 2),"%"),
+    `Mortgage amount` = format(round(loan_amt), big.mark = ","),
+    `Annual payments` = format(round(pmt), big.mark = ","),
+    `Monthly payments` = format(round(pmt / 12), big.mark = ",")
   )
 }
 
