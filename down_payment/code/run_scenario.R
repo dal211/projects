@@ -1,3 +1,4 @@
+options(scipen = 9999)
 source("code/libraries.R")
 
 # Loan
