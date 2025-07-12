@@ -71,7 +71,7 @@ ui <- fluidPage(
         # GitHub link centered
         tags$div(
           style = "text-align: left;",
-          tags$a("Calculate your mortgage here:",
+          tags$a("Calculate your mortgage here",
             href   = "https://richardgasquet.shinyapps.io/down_payment/",
             target = "_blank",
             style  = "font-size:14px;"
