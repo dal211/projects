@@ -58,7 +58,7 @@ ui <- fluidPage(
         selectInput(
           "town_sel", "Pick a town:",
           choices = sort(unique(towns_sf$town_name)),
-          selected = "Boston"
+          selected = "Shrewsbury"
         ),
         tags$p("Click on a town for detailed information."),
         br()
