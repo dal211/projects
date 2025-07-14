@@ -1,0 +1,10 @@
+.Rhistory
+.RData
+.Rproj.user
+.Renviron
+/GRF24
+*.docx
+map_box_testing.qmd
+mapping.Rmd
+data/
+output/

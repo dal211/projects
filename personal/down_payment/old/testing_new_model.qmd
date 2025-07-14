@@ -1,0 +1,110 @@
+---
+title: "testing_new_model"
+format: html
+---
+
+```{r}
+
+options(scipen = 9999)
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE
+)
+
+source("code/libraries.R")
+source("code/run_scenario")
+
+```
+
+```{r dp and loan principal}
+
+# dp_pct = scenario’s down‐payment_pct (e.g. large)
+# base_dp_pct = the “other” DP you compare to (e.g. small)
+times <- 0:loan_term_years
+
+# Compute DP and loan principal
+dp <- round(dp_pct * purchase_price)
+base_dp <- round(base_dp_pct * purchase_price)
+
+loan_amt <- round(purchase_price - dp)
+base_loan <- round(purchase_price - base_dp)
+
+```
+
+```{r annual mortgage payments}
+
+pmt <- round(calc_annual_payment(loan_amt, mortgage_rate, loan_term_years))
+base_pmt <- round(calc_annual_payment(base_loan, mortgage_rate, loan_term_years))
+
+```
+
+```{r payments}
+
+# Annually
+ttl_pmts <- c(-dp, rep(-pmt, loan_term_years))
+ttl_base_pmts <- c(-base_dp, rep(-base_pmt, loan_term_years))
+
+# Monthly
+-pmt/12
+-base_pmt/12
+
+```
+
+```{r cash flows}
+
+# t=0 : you keep (base_dp – dp) in your pocket to invest
+invest0 <- base_dp - dp # 100k less to invest at time 0 than the smaller DP scenario
+
+# t=1...t = n
+ann_save <- round(base_pmt - pmt)
+invest_flows <- c(invest0, rep(ann_save, loan_term_years))
+mortgage_flows <- c(-dp, rep(-pmt, loan_term_years))
+
+```
+
+```{r}
+
+pv_invest <- round(sum( invest_flows / (1 + invest_return)^times ))
+pv_mortgage <- round(sum(mortgage_flows / (1 + invest_return)^times))
+
+pv_invest + pv_mortgage
+```
+
+```{r}
+
+tibble(
+  dp_pct      = dp_pct,
+  dp_amount   = dp,
+  loan_amount = loan_amt,
+  annual_pmt  = pmt,
+  pv_invest   = pv_invest,
+  pv_mortgage = pv_mortgage,
+  net_npv     = pv_invest + pv_mortgage
+)
+
+```
+
+```{r}
+
+results <- bind_rows(
+  # Compare: large DP vs. small DP
+  run_scenario(down_payment_pct_large, down_payment_pct_small),
+  #         medium DP vs. small DP
+  run_scenario(down_payment_pct_med, down_payment_pct_small)
+)
+
+# 5. Show results
+results %>%
+  mutate(
+    dp_label = case_when(
+      dp_pct == down_payment_pct_large ~ "Large DP",
+      dp_pct == down_payment_pct_med ~ "Medium DP",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  select(dp_label, dp_amount, loan_amount, annual_pmt, pv_invest, pv_mortgage, net_npv) %>%
+  knitr::kable(digits = 0, caption = "NPV Comparison of Down‐Payment Scenarios")
+
+
+```
+

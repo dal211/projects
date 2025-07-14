@@ -1,0 +1,106 @@
+---
+title: "down_payment_model"
+format: html
+---
+
+```{r}
+
+options(scipen = 9999)
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE
+)
+
+source("code/libraries.R")
+
+```
+
+```{r define variables}
+
+purchase_price <- 700000
+down_payment_pct_small <- .14 # Would lead to a larger loan
+down_payment_pct_med <- .30 # Would lead to a medium loan
+down_payment_pct_large <- .43 # Would lead to a smaller loan
+mortgage_rate <- .05
+loan_term_years <- 15
+invest_return <- .07
+
+# Mortgage payments
+calc_annual_payment <- function(principal, rate, term_years) {
+  ((rate * principal) * (1 + rate)^term_years) / (((1 + rate)^term_years) - 1)
+}
+
+# NPV Calc
+npv_calc <- function(annual_payment, r ,n) {
+  round(annual_payment * (1 - ((1+r)^(-n))) / (r))
+}
+
+```
+
+# Large down payment
+Large down payment, smaller mortgage payments
+
+```{r Scenario 1 - DP}
+
+ # Larger DP, smaller loan
+dp1 <- down_payment_pct_large*purchase_price # 300k
+loan1 <- purchase_price*(1 - down_payment_pct_large) # 400k
+annual_mortgage_pmt1 <- calc_annual_payment(loan1, mortgage_rate, loan_term_years)
+monthly_mortgage_pmt1 <- annual_mortgage_pmt1 / 12 #3.2k
+
+```
+
+# Small down payment
+Small down payment, large mortgage payments
+
+```{r Scenario 2 - DP}
+
+ # Smaller DP, larger loan
+dp2 <- down_payment_pct_small*purchase_price # 100k
+loan2 <- purchase_price*(1 - down_payment_pct_small) # 602k
+annual_mortgage_pmt2 <- calc_annual_payment(loan2, mortgage_rate, loan_term_years)
+monthly_mortgage_pmt2 <- annual_mortgage_pmt2 / 12 # 4.8k
+
+```
+
+# Free investment capital
+
+```{r Scenario 1 - Capital}
+
+invest1 <- loan1 - loan2 # -200k less to invest
+annual_pmt_diff1 <- annual_mortgage_pmt2 - annual_mortgage_pmt1 # Has 20k more to invest annually
+npv_annual_pmt_diff1 <- npv_calc(annual_pmt_diff1, invest_return, loan_term_years)
+
+free_capital1 <- if_else(invest1 + npv_annual_pmt_diff1 < 0, 0, invest1 + npv_annual_pmt_diff1)
+
+# Has -25k less free capital invest given a larger down payment compared to the small downpayment (larger mortgage pmts)
+
+# How much could you invest using the free capital?
+investment_value1 <- numeric(loan_term_years)
+investment_value1[1] <- free_capital1
+
+for (i in 2:loan_term_years) {
+  investment_value1[i] <- round(investment_value1[i - 1] * (1 + invest_return))
+}
+
+```
+
+```{r Scenario 2 - Capital}
+
+invest2 <- loan2 - loan1 # +200k more to invest
+annual_pmt_diff2 <- annual_mortgage_pmt1 - annual_mortgage_pmt2 # Has -20k less to invest annually
+npv_annual_pmt_diff2 <- npv_calc(annual_pmt_diff2, invest_return, loan_term_years)
+
+free_capital2 <- if_else(invest2 + npv_annual_pmt_diff2 < 0, 0, invest2 + npv_annual_pmt_diff2)
+
+# +25k more to invest compared to a larger down payment scenario 
+
+# How much could you invest using the free capital?
+investment_value2 <- numeric(loan_term_years)
+investment_value2[1] <- free_capital2
+
+for (i in 2:loan_term_years) {
+  investment_value2[i] <- round(investment_value2[i - 1] * (1 + invest_return))
+}
+
+```

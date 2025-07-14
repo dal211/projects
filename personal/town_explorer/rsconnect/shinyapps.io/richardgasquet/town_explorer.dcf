@@ -1,0 +1,10 @@
+name: town_explorer
+title:
+username: richardgasquet
+account: richardgasquet
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 14764804
+bundleId: 10326343
+url: https://richardgasquet.shinyapps.io/town_explorer/
+version: 1
