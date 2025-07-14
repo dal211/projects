@@ -1,0 +1,291 @@
+---
+title: "Propensity_scores"
+format: html
+editor: visual
+---
+
+```{r balance plots}
+
+install.packages("cobalt")
+library("cobalt") # Balance groups 
+
+data("lalonde")
+
+head(lalonde)
+
+# plot distributions for stress variable
+bal.plot(
+  x = meditate ~ stress, #formula
+  data = sleep_data, #dataset
+  var.name = "stress", #variable
+  colors = c("#E69F00", "#009E73") #set fill colors
+)
+
+```
+
+```{r balance numbers}
+
+# Therefore, the following guidelines can be used to indicate good balance:
+# SMD between -0.1 and 0.1
+# Variance ratio between 0.5 and 2.0
+
+bal.tab (
+  x = low_ef ~ age + cholesterol + heart_attack,
+  data = los_data,
+  disp.v.ratio = TRUE, # display variance ratio
+  binary = "std" #SMDs for binary variables 
+)
+
+# Balance Measures
+#                 Type Diff.Un V.Ratio.Un
+# age          Contin.  0.5575     1.1072 <- unequal means (SMD), ok variance 
+# cholesterol   Binary  0.5238          . <- unequal means (SMD)
+# heart_attack  Binary  0.6162          . <- unequal means (SMD)
+
+```
+
+```{r calculate propensity scores}
+
+# Propensity scores are the probability of receiving treatment (e.g. meditate) based on all the characteristics in the data. You use logistic regression which models the dependent variable as a binary outcome (between 0 and 1). Stress may lower one's probability of wanting to meditate
+
+prop_model <- glm(
+  formula = meditate ~ stress,
+  data = sleep_data,
+  family = "binomial" # Specify logistic regression
+)
+
+ef_ps <- predict(ef_model, type = "response")
+ef_hist <- hist(ef_ps)
+
+
+```
+
+```{r use propensity scores to create weights}
+
+# inverse probability of treatment weighting (IPTW).
+los_sample$ATE_weight <- ifelse(
+  los_sample$low_ef == 0, # if control
+  1 / (1 - los_sample$ps),  # control weight
+  1 / los_sample$ps # else, treatment weight
+)
+
+los_sample$ATT_weight <- ifelse(
+  los_sample$low_ef == 0, 
+  los_sample$ps / (1 - los_sample$ps), 
+  1)
+
+```
+
+```{r use weightit to create iptw weights}
+
+# import library
+library(WeightIt)
+# model propensity scores and IPTW weights
+iptw_sleep <- weightit(
+  formula = meditate ~ stress, #propensity model
+  data = sleep_data, #dataset
+  method = "ps", #use IPTW
+  estimand = "ATT" #estimand
+)
+
+iptw_ef <- weightit(
+  formula = low_ef ~ age + cholesterol, # propensity model
+  data = los_data, # dataset
+  method = "ps", # use IPTW
+  estimand = "ATT"
+)
+
+
+```
+
+```{r check balance after propensity score weights}
+
+ps_bal <-
+  bal.plot(
+    x = iptw_ef,
+    var.name = "prop.score", # propensity scores
+    which = "both", # before and after
+    colors = c("#E69F00", "#009E73")
+  )
+
+ps_love <- 
+  love.plot (
+    x = iptw_ef,
+    binary = "std", # use SMD
+    thresholds = c(m = 0.1), # guidelines
+    colors = c("#E69F00", "#009E73") #sets fill colors
+  )
+
+```
+
+```{r what if the balance or love plot isn't within threshold, rerun the model}
+
+# Maybe the differences between the two groups are because of other characteristics so we have to account for those
+
+iptw_ef2 <- weightit(
+  formula = low_ef ~ age + cholesterol + heart_attack,
+  data = los_data,
+  estimand = "ATT",
+  method = "ps"
+)
+
+love_update <- 
+  love.plot(
+    x = iptw_ef2,
+    binary = "std",
+    thresholds = c(m = 0.1),
+    colors = c("#E69F00", "#009E73") #fill colors  
+  )
+
+```
+
+```{r inference}
+
+library(WeightIt)
+library(lmtest)
+library(sandwich)
+# import dataset
+los_data <- read.csv("los_data.csv")
+
+# create IPTW weights
+iptw_ef2 <- weightit(
+  formula = low_ef ~ age + cholesterol + heart_attack, #propensity model
+  data = los_data, #dataset
+  estimand = "ATT", #effect
+  method = "ps" #use IPTW
+)
+
+# Create outcome model
+outcome_mod <- glm(
+  formula = hospital_los ~ low_ef + age + cholesterol + heart_attack,
+  data = los_data,
+  weights = iptw_ef2$weights
+)
+
+# Get coefficients with robust standard errors
+# weighting may cause standard errors to be inaccurate, so we need to use a more robust calculation of the standard errors
+att_robust <-
+  coeftest(
+    outcome_mod,
+    vcov. = vcovHC
+  )
+
+
+```
+
+# Impact of Cover Crops on Wheat Crop Yields
+
+
+First, let’s assess overlap and balance visually for a couple of variables to compare counties with AT LEAST 10% of farms using cover crops and counties with LESS THAN 10% of farms using cover crops.
+
+Create a balance plot for the age_avg variable. Do the treatment and control distributions appear to be centered in the same location and have similar spreads?
+
+```{r}
+# Balance plot for the average age
+bal.plot(
+  x = cover_10 ~ age_avg,
+  data = farm_df,
+  var.name = "age_avg",
+  colors = c("#E69F00", "#009E73") #set fill colors  
+)
+
+```
+
+Now create a balance plot for the categorical variable region. Are the proportions of counties in the treatment versus control groups similar across the four regions?
+
+```{r}
+# Balance plot for geographic region
+bal.plot(
+  x = cover_10 ~ region,
+  data = farm_df,
+  var.name = "region",
+  colors = c("#E69F00", "#009E73") #set fill colors  
+)
+```
+
+So far, it looks like we have quite a bit of imbalance between the treatment groups to deal with especially for region. Let’s assess balance numerically to quantify this imbalance more precisely. Create a balance table to show standardized mean differences (SMD) and variance ratios for all the predictor variables according to the treatment group. Check whether the balance measurements fall outside of the guidelines of ±0.1 for SMDs and between 0.5 and 2 for variance ratios.
+
+```{r}
+
+# Balance table to show SMD and variance ratio of between groups
+bal.tab (
+  x = cover_10 ~ region + total_avg + age_avg + experience_avg + insurance_avg + easement_p + conservation_till_avg + fertilizer_per_area,
+  data = farm_df,
+  disp.v.ratio = TRUE, # display variance ratio
+  binary = "std" #SMDs for binary variables
+)
+
+```
+
+```{r iptw weighting}
+
+# Calculate IPTW weights with initial propensity score model
+farm_iptw <- weightit(
+  formula = cover_10 ~ region + total_avg + insurance_avg + fertilizer_per_area,
+  data = farm_df, 
+  method = "ps", # use IPTW
+  estimand = "ATE"
+)
+
+```
+
+```{r}
+# Love plot with threshold lines to show SMD balance before and after weighting
+love.plot (
+  x = farm_iptw,
+  binary = "std", # use SMD
+  thresholds = c(m = 0.1), # guidelines
+  colors = c("#E69F00", "#009E73") #sets fill colors  
+)
+```
+
+```{r}
+
+# balance is much better, but let's add more variables to see if there is better balance because of omitted variables
+
+# Re-calculate IPTW weights with updated propensity score model
+farm_iptw2 <- weightit(
+  formula = cover_10 ~ region + total_avg + insurance_avg + age_avg + experience_avg + easement_p + conservation_till_avg,
+  data = farm_df, 
+  method = "ps", # use IPTW
+  estimand = "ATE"
+)
+
+
+```
+
+```{r}
+
+# Plot Love plot of SMDs with threshold lines to show balance before and after IPTW procedure
+love.plot (
+  x = farm_iptw2,
+  binary = "std", # use SMD
+  thresholds = c(m = 0.1), # guidelines
+  colors = c("#E69F00", "#009E73") #sets fill colors  
+)
+
+```
+
+```{r}
+
+# Balance plot of propensity scores before and after weighting
+bal.plot(
+  x = farm_iptw2, # weightit object
+  var.name = "prop.score", # propensity scores
+  which = "both", # before and after
+  colors = c("#E69F00", "#009E73") #sets fill colors    
+)
+
+```
+
+```{r}
+
+# Fit outcome regression model
+yield_mod <- glm(
+  formula = total_yield ~ cover_10 + region + total_avg + age_avg + experience_avg + insurance_avg + easement_p + conservation_till_avg,
+  data = farm_df,
+  weights = farm_iptw2$weights
+)
+
+```
+
