@@ -48,17 +48,17 @@ mcas_agg <- mcas %>%
     exceed_cnt      = round(weighted.mean(E_CNT, w = STU_CNT), 0),
     avg_score       = round(weighted.mean(AVG_SCALED_SCORE, w = STU_CNT), 0)
   ) %>%
-  ungroup() %>% 
+  ungroup() %>%
   mutate(
     exceed_perct            = round(exceed_cnt / stu_cnt, 3),
     school_size_est         = stu_cnt * 4
     # exceed_mcas_percentile  = percent_rank(exceed_perct)
   )
 
-ap_scores <- read_csv("data/Advanced_Placement__AP__Performance_20250525.csv") %>% 
-  filter(ORG_TYPE == "District", SUBJ_CAT == "All Subjects", STU_GRP == "All Students", SY == "2024") %>% 
+ap_scores <- read_csv("data/Advanced_Placement__AP__Performance_20250525.csv") %>%
+  filter(ORG_TYPE == "District", SUBJ_CAT == "All Subjects", STU_GRP == "All Students", SY == "2024") %>%
   select(SY, DIST_CODE, PCT_3_5)
-  # mutate(passing_ap_perctile = percent_rank(PCT_3_5))
+# mutate(passing_ap_perctile = percent_rank(PCT_3_5))
 
 # School district crosswalk
 town_school_dist_xwalk <- read_csv("data/final_school_districts_mapping_v1.csv") %>%
@@ -78,14 +78,26 @@ three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_
     lst_yr_typ_home_value = `3/31/2024`
   )
 
+# Add property tax rates
+prop_tax_rates <- read_xlsx("data/taxratesbyclass.xlsx") %>% 
+  mutate(
+    prop_rate = Residential / 1000
+  ) %>% 
+  select(Municipality, prop_rate)
+
 # Town geometry and joins
 towns_sf <- tigris::county_subdivisions(state = "MA", cb = TRUE, year = 2023) %>%
   rename(town_name = NAME) %>%
   left_join(town_school_dist_xwalk, by = "town_name") %>%
-  left_join(mcas_agg,              by = c("DIST_NAME")) %>%
-  left_join(price_town_mapping,    by = "town_name") %>%
+  left_join(mcas_agg, by = c("DIST_NAME")) %>%
+  left_join(price_town_mapping, by = "town_name") %>%
   left_join(three_bed_home_price_zil, by = c("region_name" = "RegionName")) %>%
-  left_join(ap_scores, by = "DIST_CODE") %>%  
+  left_join(ap_scores, by = "DIST_CODE") %>%
+  mutate(
+    muni_id = str_replace(town_name,".Town$", ""),
+    muni_id = if_else(town_name == "Manchester-by-the-Sea", "Manchester By The Sea", muni_id)
+  ) %>% 
+  left_join(prop_tax_rates %>% select(Municipality, prop_rate) , by = c("muni_id" = "Municipality")) %>%
   st_transform(4326)
 
 # Croton geometry
@@ -97,28 +109,28 @@ croton_pt <- st_sfc(
 
 st_crs(towns_sf)
 #> Coordinate Reference System:
-#>   EPSG:4326 
+#>   EPSG:4326
 #>   proj4string: "+proj=longlat +datum=WGS84 +no_defs"
 
 st_crs(croton_pt)
 #> Coordinate Reference System:
-#>   EPSG:4326 
+#>   EPSG:4326
 #>   proj4string: "+proj=longlat +datum=WGS84 +no_defs"
 
 # 2. Compute each town’s centroid and distance to Croton (in km):
 towns_sf <- towns_sf %>%
   mutate(
     centroid = st_centroid(geometry),
-    dist_to_croton_mi = 
+    dist_to_croton_mi =
       round(as.numeric(
         st_distance(centroid, croton_pt)
-      ) / 1000 / 1.60934
-  )) %>% 
+      ) / 1000 / 1.60934)
+  ) %>%
   mutate(
     dist_to_croton_mi = dist_to_croton_mi + 50,
     mcas_rank = percent_rank(exceed_perct),
-    ap_rank = percent_rank(PCT_3_5),    
-    normalized_school_score = round((.5*mcas_rank + .5*ap_rank)*100,1),
+    ap_rank = percent_rank(PCT_3_5),
+    normalized_school_score = round((.5 * mcas_rank + .5 * ap_rank) * 100, 1),
     school_color = if_else(normalized_school_score > 70, 1, 0)
   )
 
@@ -138,7 +150,6 @@ tbl_dist <- osrmTable(
 
 # 4. pull out the one‐column vectors
 towns_sf$dist_m <- tbl_dist$distances[, 1]
-towns_sf$dist_mi <- towns_sf$dist_m / 1609.34  # meters to miles
+towns_sf$dist_mi <- towns_sf$dist_m / 1609.34 # meters to miles
 
 saveRDS(towns_sf, "data/towns_sf.rds")
-
