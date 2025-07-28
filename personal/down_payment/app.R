@@ -11,30 +11,50 @@ calc_annual_payment <- function(principal, rate, term_years) {
 
 run_scenario <- function(purchase_price, dp_pct, mortgage_rate,
                          loan_term_years, tax_rate, scenario_id) {
-  dp <- dp_pct * purchase_price
-  loan_amt <- purchase_price - dp
-  pmt <- calc_annual_payment(loan_amt, mortgage_rate, loan_term_years)
+  dp         <- dp_pct * purchase_price
+  loan_amt   <- purchase_price - dp
+  pmt_annual <- calc_annual_payment(loan_amt, mortgage_rate, loan_term_years)
+  pmt_month  <- pmt_annual / 12
   
-  # Annual property tax = tax_rate% of purchase price
+  # Monthly property tax
   tax_annual <- (tax_rate / 100) * purchase_price
+  tax_month  <- tax_annual / 12
   
-  # Present value of n years of property tax at same discount rate as mortgage
-  pv_tax <- tax_annual * (1 - (1 + mortgage_rate)^(-loan_term_years)) / mortgage_rate
-
+  # Monthly home insurance (0.2% of home price annually)
+  insur_annual <- purchase_price * 0.002
+  insur_month  <- insur_annual / 12
+  
+  total_monthly <- pmt_month + tax_month + insur_month
+  
+  # HTML-formatted breakdown for tooltip
+  breakdown <- sprintf(
+    "Mortgage: $%s\nEst. property tax: $%s\nEst. home insurance: $%s",
+    format(round(pmt_month), big.mark = ","),
+    format(round(tax_month), big.mark = ","),
+    format(round(insur_month), big.mark = ",")
+  )
+  
   tibble(
-    Scenario = paste("Scenario", scenario_id),
     `Home price` = paste0("$", format(purchase_price, big.mark = ",")),
     `DP %` = paste0(round(dp_pct * 100, 1), "%"),
     `DP $` = paste0("$", format(round(dp), big.mark = ",")),
-    `Term years` = loan_term_years,
-    `Mortgage interest rate` = paste0(round(mortgage_rate * 100, 2), "%"),
-    `Mortgage amount` = paste0("$", format(round(loan_amt), big.mark = ",")),
-    `Annual payments` = paste0("$", format(round(pmt), big.mark = ",")),
-    `Monthly payments` = paste0("$", format(round(pmt / 12), big.mark = ",")),
-    `Annual Property Tax` = paste0("$", format(round(tax_annual), big.mark = ",")),
-    `PV of Property Tax` = paste0("$", format(round(pv_tax), big.mark = ","))
+    `Loan years` = loan_term_years,
+    `Interest rate` = paste0(round(mortgage_rate * 100, 2), "%"),
+    `Total loan` = sprintf(
+      "<span title='Annual payments: $%s\nMonthly payments: $%s'>$%s</span>",
+      format(round(pmt_annual), big.mark = ","),
+      format(round(pmt_month), big.mark = ","),
+      format(round(loan_amt), big.mark = ",")
+    ),
+    `Loan payments`  = paste0("$", format(round(pmt_month), big.mark = ",")),
+    `Total monthly payments` = sprintf(
+      "<span title='%s'>$%s</span>",
+      breakdown,
+      format(round(total_monthly), big.mark = ",")
+    )
   )
 }
+
 
 # UI for a single scenario block
 scenarioInputUI <- function(id, label) {
@@ -104,7 +124,14 @@ ui <- fluidPage(
   fluidRow(
     column(
       width = 8,
-      h2("Compare Mortgage Scenarios")
+      tags$div(
+        h2("Compare Mortgage Scenarios"),
+        tags$a(
+          href = "https://github.com/dal211/projects/tree/main/personal/down_payment", target = "_blank",
+          style = "font-size:16px; text-decoration: none;",
+          icon("github"), "GitHub"
+        )
+      )
     ),
     column(
       width = 4, align = "right",
@@ -148,9 +175,10 @@ server <- function(input, output, session) {
   # Render UI for each active scenario
   output$scenario_inputs <- renderUI({
     lapply(rv$ids, function(i) {
-      scenarioInputUI(paste0("s", i), paste("Scenario", i))
+      scenarioInputUI(paste0("s", i), strong(paste("Scenario", i)))
     })
   })
+  
   
   # Launch a server module for each scenario, wiring up removal
   scenario_values <- reactiveValues()
@@ -192,9 +220,11 @@ server <- function(input, output, session) {
     datatable(
       table_data(),
       rownames = FALSE,
+      escape   = FALSE,  # <-- allow HTML tooltips to render
       options  = list(dom = "t")
     )
   })
+  
   
   # Download handler for exporting the table as CSV
   output$download_table <- downloadHandler(
