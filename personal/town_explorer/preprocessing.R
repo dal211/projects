@@ -131,7 +131,13 @@ towns_sf <- towns_sf %>%
     mcas_rank = percent_rank(exceed_perct),
     ap_rank = percent_rank(PCT_3_5),
     normalized_school_score = round((.5 * mcas_rank + .5 * ap_rank) * 100, 1),
-    school_color = if_else(normalized_school_score > 70, 1, 0)
+    school_color = if_else(normalized_school_score > 70, 1, 0),
+    tier_2_color = if_else(normalized_school_score > 50 & normalized_school_score < 60, 1, 0),
+    fill_color = case_when(
+      tier_2_color ==1 ~ "#AB47BC",
+      school_color == 1 ~ "#ffc107",
+      TRUE ~ "transparent"
+    )
   )
 
 ###############################

@@ -23,9 +23,6 @@ towns_sf <- readRDS("data/towns_sf.rds")
 towns_sf <- st_simplify(towns_sf, dTolerance = 100)
 commuter_shapes_sf <- readRDS("data/shapes_sf.rds")
 
-# Color palette for exceed percentile
-pal_bin <- colorFactor(palette = c("transparent", "#ffc107"), domain = c(0, 1), na.color = "transparent")
-
 # ---- UI ----
 ui <- fluidPage(
   tags$head(
@@ -104,7 +101,7 @@ server <- function(input, output, session) {
       addPolygons(
         group = "towns",
         label = ~town_name,
-        fillColor = ~ pal_bin(school_color),
+        fillColor = ~ fill_color,
         fillOpacity = 0.15,
         color = "grey",
         weight = 1,
@@ -122,9 +119,9 @@ server <- function(input, output, session) {
       ) %>%
       addLegend(
         position = "bottomleft",
-        colors = "#ffc107",
-        labels = "At least 70th percentile composite of MCAS and AP scores",
-        title = "<div style='font-size:13px;'>School Quality</div>",
+        colors  = c("#AB47BC", "#ffc107"),
+        labels  = c("50–60th percentile", ">70th percentile"),
+        title   = "<div style='font-size:13px;'>School Quality</div>",
         opacity = 0.9,
         labFormat = labelFormat(textsize = "10px")
       )
