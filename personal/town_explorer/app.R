@@ -35,6 +35,23 @@ ui <- fluidPage(
       }
     "))
   ),
+  
+  # ── Title + GitHub link ──
+  fluidRow(
+    column(
+      width = 8,
+      h2("Where Should I Live?"),
+      tags$a(
+        href   = "https://github.com/dal211/projects/tree/main/personal/town_explorer",
+        target = "_blank",
+        style  = "font-size:16px; text-decoration: none; display: inline-block; margin-top: -10px;",
+        icon("github"), "GitHub"
+      )
+    )
+  ),
+  hr(),
+  
+  # ── Sidebar and map layout ──
   sidebarLayout(
     sidebarPanel(
       width = 2,
@@ -47,7 +64,7 @@ ui <- fluidPage(
         padding-bottom: 1rem;
         overflow-y: auto;
       ",
-
+      
       # Top section
       tags$div(
         class = "spaced",
@@ -60,22 +77,21 @@ ui <- fluidPage(
         tags$p("Click on a town for detailed information."),
         br()
       ),
-
+      
       # Bottom section
       tags$div(
         style = "margin: 0; padding: 0; text-align: left;",
-
-        # GitHub link centered
         tags$div(
           style = "text-align: left;",
           tags$a("Calculate your mortgage here",
-            href   = "https://richardgasquet.shinyapps.io/down_payment/",
-            target = "_blank",
-            style  = "font-size:14px;"
+                 href   = "https://richardgasquet.shinyapps.io/down_payment/",
+                 target = "_blank",
+                 style  = "font-size:14px;"
           )
         )
       )
     ),
+    
     mainPanel(
       width = 10,
       style = "padding:0; margin:0; height:100vh;",
@@ -83,6 +99,7 @@ ui <- fluidPage(
     )
   )
 )
+
 
 # ---- Server ----
 server <- function(input, output, session) {
