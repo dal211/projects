@@ -1,0 +1,229 @@
+---
+title: "Massachusetts Town Explorer"
+format: html
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+---
+
+```{r setup, warnings = FALSE}
+
+options(scipen = 9999)
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE
+)
+
+library(shiny)
+library(leaflet)
+library(mapboxapi)
+library(dplyr)
+library(tigris)
+library(readr)
+library(sf)
+library(rsconnect)
+library(tidyverse)
+library(styler)
+library(tidycensus)
+library(ggplot2)
+library(usethis)
+library(scales)
+library(flexdashboard)
+library(readxl)
+library(openxlsx)
+library(fuzzyjoin)
+library(leaflet.extras)
+library("shiny")
+Sys.getenv("MAPBOX_PUBLIC_TOKEN")
+
+```
+
+```{r}
+
+mcas <- read_csv("data/MCAS_Achievement_Results_20250415.csv") %>%
+  filter(
+    SY == 2024,
+    STUGRP == "White",
+    ORG_NAME != "State",
+    TEST_GRADE == "10",
+    ORG_TYPE == "Public School District"
+  ) %>%
+  select(
+    SY:STUGRP, STU_CNT, E_CNT, AVG_SCALED_SCORE
+  )
+
+mcas_agg <- mcas %>%
+  group_by(DIST_NAME) %>%
+  summarize(
+    stu_cnt = median(STU_CNT),
+    exceed_cnt = round(weighted.mean(E_CNT, w = STU_CNT), 0),
+    avg_score = round(weighted.mean(AVG_SCALED_SCORE, w = STU_CNT), 0)
+  ) %>%
+  mutate(
+    exceed_perct = round(exceed_cnt / stu_cnt, 3),
+    school_size_est = stu_cnt * 4,
+    exceed_mcas_percentile = round(percent_rank(exceed_perct) * 100, 1)
+  )
+
+```
+
+```{r pull census data}
+
+options(tigris_use_cache = TRUE)
+
+tracts <- get_acs(
+  geography = "tract",
+  variables = c(
+    hh_income = "B19013_001"
+    #med_home_value = "B25077_001"
+  ),
+  state = "MA",
+  geometry = TRUE,
+  year = 2023
+)
+
+```
+
+```{r}
+
+town_school_dist_xwalk <-
+  read_csv("data/final_school_districts_mapping_v1.csv") %>%
+  distinct() %>%
+  arrange(town_name) %>%
+  group_by(town_name) %>%
+  slice(1)
+
+```
+
+```{r}
+
+price_town_mapping <- 
+  read_csv("data/Mapping_Table_with_Exact_Match_Column2.csv")
+
+three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv") %>%
+  filter(State == "MA") %>%
+  select(RegionName, State, CountyName, last_col(offset = 12), last_col()) %>%
+  mutate(one_year_price_change = round((`3/31/2025` - `3/31/2024`) / `3/31/2024` * 100, 1)) %>% 
+  rename(
+    current_typ_home_value = `3/31/2025`,
+    lst_yr_typ_home_value = `3/31/2024`
+  )
+
+```
+
+```{r town-level-mcas-map, echo=TRUE}
+# 1a) Grab true town boundaries and join MCAS data
+towns_sf <- tigris::county_subdivisions(
+  state = "MA",
+  cb    = TRUE,
+  year  = 2023
+) %>%
+  rename(town_name = NAME) %>%
+  left_join(town_school_dist_xwalk, by = "town_name") %>%
+  left_join(mcas_agg, by = "DIST_NAME") %>%
+  left_join(
+    price_town_mapping,
+    by = c("town_name")
+  ) %>%
+  left_join(
+    three_bed_home_price_zil,
+    by = c("region_name" = "RegionName")
+  ) %>%   
+  mutate(
+    mcas_color = if_else(exceed_mcas_percentile > 70, 1, 0)
+  )
+
+# 1b) Build a binary palette: transparent vs. gold
+pal_bin <- colorFactor(
+  palette  = c("transparent", "#ffc107"),
+  domain   = c(0, 1),
+  na.color = "transparent"
+)
+
+```
+
+```{r}
+
+# <-- this is your UI control
+selectInput(
+  inputId  = "town_sel",
+  label    = "Pick a town:",
+  choices  = sort(unique(towns_sf$town_name)),
+  selected = "Boston"
+)
+
+```
+
+```{r}
+
+leafletOutput("townMap", height="650px")
+
+```
+
+```{r}
+
+#| context: server
+
+# <-- all of this runs server-side
+
+# 1) render the full map initially
+output$townMap <- renderLeaflet({
+  leaflet(towns_sf) %>%
+    addMapboxTiles(style_id="streets-v11", username="mapbox") %>%
+    addPolygons(
+      group       = "towns",
+      fillColor   = ~ pal_bin(mcas_color),
+      fillOpacity = 0.15,
+      color       = "black",
+      weight      = 1,
+      popup       = ~ paste0(
+        "<strong>Town:</strong> ", town_name, "<br/>",
+        "<strong>District:</strong> ", DIST_NAME, "<br/>",
+        "<strong>Home Price:</strong> $", round(current_typ_home_value/1000),"K","<br/>",
+        "<strong>Price Δ:</strong> ",
+          ifelse(one_year_price_change>0, paste0("+",one_year_price_change), one_year_price_change),"%<br/>",
+        "<strong>School Size:</strong> ", school_size_est, "<br/>",
+        "<strong>MCAS Percentile:</strong> ",
+          ifelse(is.na(exceed_mcas_percentile),"NA",paste0(exceed_mcas_percentile,"%"))
+      )
+    ) %>%
+    addLegend(
+      position = "bottomleft",
+      colors   = "#ffc107",
+      labels   = "Top 20% MCAS Districts",
+      title    = "<div style='font-size:13px;'>School Quality</div>",
+      opacity  = 0.9,
+      labFormat= labelFormat(textsize="10px")
+    )
+})
+
+# 2) observe the selectInput and zoom/highlight
+observeEvent(input$town_sel, {
+  sf_sel <- filter(towns_sf, town_name == input$town_sel)
+  bb     <- st_bbox(sf_sel)
+  leafletProxy("townMap") %>%
+    clearGroup("highlight") %>%
+    addPolygons(
+      data    = sf_sel,
+      group   = "highlight",
+      color   = "red",
+      weight  = 3,
+      fill    = FALSE
+    ) %>%
+    flyToBounds(bb$xmin, bb$ymin, bb$xmax, bb$ymax)
+})
+
+
+```
+
+```{=html}
+
+<hr style="margin-top:30px;">
+<p style="text-align:center; font-size:14px; color:gray;">
+  🐧 Built by <strong>DJ</strong> · 
+  <a href="https://github.com/dal211/projects" target="_blank">GitHub</a> · 
+  Data: DESE, Mapbox, Zillow
+</p>
+```
