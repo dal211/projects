@@ -10,10 +10,16 @@ calc_annual_payment <- function(principal, rate, term_years) {
 }
 
 run_scenario <- function(purchase_price, dp_pct, mortgage_rate,
-                         loan_term_years, scenario_id) {
+                         loan_term_years, tax_rate, scenario_id) {
   dp <- dp_pct * purchase_price
   loan_amt <- purchase_price - dp
   pmt <- calc_annual_payment(loan_amt, mortgage_rate, loan_term_years)
+  
+  # Annual property tax = tax_rate% of purchase price
+  tax_annual <- (tax_rate / 100) * purchase_price
+  
+  # Present value of n years of property tax at same discount rate as mortgage
+  pv_tax <- tax_annual * (1 - (1 + mortgage_rate)^(-loan_term_years)) / mortgage_rate
 
   tibble(
     Scenario = paste("Scenario", scenario_id),
@@ -24,7 +30,9 @@ run_scenario <- function(purchase_price, dp_pct, mortgage_rate,
     `Mortgage interest rate` = paste0(round(mortgage_rate * 100, 2), "%"),
     `Mortgage amount` = paste0("$", format(round(loan_amt), big.mark = ",")),
     `Annual payments` = paste0("$", format(round(pmt), big.mark = ",")),
-    `Monthly payments` = paste0("$", format(round(pmt / 12), big.mark = ","))
+    `Monthly payments` = paste0("$", format(round(pmt / 12), big.mark = ",")),
+    `Annual Property Tax` = paste0("$", format(round(tax_annual), big.mark = ",")),
+    `PV of Property Tax` = paste0("$", format(round(pv_tax), big.mark = ","))
   )
 }
 
@@ -52,7 +60,9 @@ scenarioInputUI <- function(id, label) {
     ),
     selectInput(ns("term"), "Loan Term",
       choices = c(10, 15, 20, 30), selected = 15
-    )
+    ),
+    numericInput(ns("tax_rate"), "Annual Property Tax Rate (%)",
+                 value = 1.2, min = 0, max = 10, step = 0.1)
   )
 }
 
@@ -82,18 +92,33 @@ scenarioInputServer <- function(id, remove_callback) {
         price  = input$price,
         dp_pct = input$dp / input$price,
         rate   = input$rate,
-        term   = as.numeric(input$term)
+        term   = as.numeric(input$term),
+        tax_rate = input$tax_rate
       )
     })
   })
 }
 
+# UI
 ui <- fluidPage(
-  titlePanel("Compare Mortgage Scenarios"),
+  fluidRow(
+    column(
+      width = 8,
+      h2("Compare Mortgage Scenarios")
+    ),
+    column(
+      width = 4, align = "right",
+      downloadButton("download_table", "Export CSV", class = "btn-sm")
+    )
+  ),
+  hr(),
+  
+  # ── Scenario inputs & table ──
   fluidRow(
     column(
       4,
-      actionButton("add_scenario", "Add Scenario"), br(), br(),
+      actionButton("add_scenario", "Add Scenario"),
+      br(), br(),
       uiOutput("scenario_inputs")
     ),
     column(
@@ -103,31 +128,39 @@ ui <- fluidPage(
   )
 )
 
-server <- function(input, output, session) {
-  max_blocks <- 11
-  rv <- reactiveValues(ids = 1)
-  next_id <- reactiveVal(2)
 
+server <- function(input, output, session) {
+  # Maximum number of scenario blocks
+  max_blocks <- 11
+  
+  # Track active scenario IDs and the next available ID
+  rv      <- reactiveValues(ids = 1)
+  next_id <- reactiveVal(2)
+  
+  # Add a new scenario when the button is pressed
   observeEvent(input$add_scenario, {
     if (length(rv$ids) < max_blocks) {
       rv$ids <- c(rv$ids, next_id())
       next_id(next_id() + 1)
     }
   })
-
+  
+  # Render UI for each active scenario
   output$scenario_inputs <- renderUI({
     lapply(rv$ids, function(i) {
       scenarioInputUI(paste0("s", i), paste("Scenario", i))
     })
   })
-
+  
+  # Launch a server module for each scenario, wiring up removal
   scenario_values <- reactiveValues()
   observe({
     for (i in rv$ids) {
       module_id <- paste0("s", i)
       if (is.null(scenario_values[[module_id]])) {
         scenario_values[[module_id]] <- scenarioInputServer(
-          module_id, function(rm_id) {
+          module_id,
+          function(rm_id) {
             if (length(rv$ids) > 1) {
               rv$ids <- setdiff(rv$ids, as.integer(sub("s", "", rm_id)))
               scenario_values[[rm_id]] <- NULL
@@ -137,22 +170,42 @@ server <- function(input, output, session) {
       }
     }
   })
-
-  output$comparison_table <- renderDT({
+  
+  # Combine all scenarios into one reactive table
+  table_data <- reactive({
     req(rv$ids)
-    dat <- map2_dfr(seq_along(rv$ids), rv$ids, ~ {
+    map2_dfr(seq_along(rv$ids), rv$ids, ~ {
       vals <- scenario_values[[paste0("s", .y)]]()
       run_scenario(
         purchase_price  = vals$price,
         dp_pct          = vals$dp_pct,
         mortgage_rate   = vals$rate,
         loan_term_years = vals$term,
+        tax_rate        = vals$tax_rate,
         scenario_id     = .x
       )
     })
-
-    datatable(dat, rownames = FALSE, options = list(dom = "t"))
   })
+  
+  # Render the comparison table
+  output$comparison_table <- renderDT({
+    datatable(
+      table_data(),
+      rownames = FALSE,
+      options  = list(dom = "t")
+    )
+  })
+  
+  # Download handler for exporting the table as CSV
+  output$download_table <- downloadHandler(
+    filename = function() {
+      paste0("mortgage_scenarios_", Sys.Date(), ".csv")
+    },
+    content = function(file) {
+      write_csv(table_data(), file)
+    }
+  )
 }
+
 
 shinyApp(ui, server)
