@@ -39,6 +39,7 @@ run_scenario <- function(purchase_price, dp_pct,
   pmt_annual <- pmt1_a + pmt2_a
   pmt_month <- pmt_annual / 12
   
+  # Taxes & insurance
   tax_month <- (tax_rate / 100) * purchase_price / 12
   insur_month <- purchase_price * 0.002 / 12
   total_monthly <- pmt_month + tax_month + insur_month
@@ -71,16 +72,13 @@ scenarioInputUI <- function(id, label) {
       column(2, actionButton(ns("remove"), "✕", class = "btn-sm"))
     ),
     numericInput(ns("price"), "Home Price", value = 700000, step = 10000),
-    sliderInput(ns("dp"), "Down Payment ($)",
-                min = 0, max = 700000, value = 0.2 * 700000,
-                step = 1000),
+    sliderInput(ns("dp"), "Down Payment ($)", min = 0, max = 700000, value = 0.2 * 700000, step = 1000),
     checkboxInput(ns("split_enable"), "Split mortgage between two lenders", value = FALSE),
     sliderInput(ns("rate1"), "Mortgage Rate #1", min = 0.01, max = 0.1, value = 0.05, step = 0.001),
     selectInput(ns("term1"), "Loan Term #1 (years)", choices = c(10, 15, 20, 30), selected = 20),
     conditionalPanel(
       condition = sprintf("input['%s'] == true", ns("split_enable")),
-      numericInput(ns("loan1_amt"), "Loan #1 Amount ($)",
-                   value = 0, min = 0, max = 0, step = 1000),
+      numericInput(ns("loan1_amt"), "Loan #1 Amount ($)", value = 0, min = 0, max = 0, step = 1000),
       sliderInput(ns("rate2"), "Mortgage Rate #2", min = 0.01, max = 0.1, value = 0.04, step = 0.001),
       selectInput(ns("term2"), "Loan Term #2 (years)", choices = c(10, 15, 20, 30), selected = 20)
     ),
@@ -96,7 +94,7 @@ scenarioInputServer <- function(id, remove_callback) {
       total_loan <- input$price - input$dp
       updateSliderInput(session, "dp", max = input$price, value = round(input$price * 0.2, -3))
       if (isTRUE(input$split_enable)) {
-        updateNumericInput(session, "loan1_amt", max = total_loan, value = round(total_loan * 0.6, -3))
+        updateNumericInput(session, "loan1_amt", min = 0, max = total_loan, value = min(input$loan1_amt %||% 0, total_loan))
       }
     }, ignoreInit = FALSE)
     
@@ -122,14 +120,10 @@ ui <- fluidPage(
     column(8,
            tags$div(
              h2("Compare Mortgage Scenarios"),
-             tags$a(href = "https://github.com/dal211/projects/tree/main/personal/down_payment",
-                    icon("github"), "GitHub", target = "_blank",
-                    style = "font-size:16px; text-decoration:none;")
+             tags$a(href = "https://github.com/dal211/projects/tree/main/personal/down_payment", icon("github"), "GitHub", target = "_blank", style = "font-size:16px; text-decoration:none;")
            )
     ),
-    column(4, align = "right",
-           downloadButton("download_table", "Export CSV", class = "btn-sm")
-    )
+    column(4, align = "right", downloadButton("download_table", "Export CSV", class = "btn-sm"))
   ),
   hr(),
   fluidRow(
