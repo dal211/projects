@@ -115,6 +115,13 @@ scenarioInputServer <- function(id, remove_callback) {
       }
     })
     
+    # enforce constraint on Annual Property Tax Rate: max 3%
+    observeEvent(input$tax_rate, {
+      if (!is.na(input$tax_rate) && input$tax_rate > 3) {
+        updateNumericInput(session, "tax_rate", value = 3)
+      }
+    })
+    
     reactive({
       list(
         price = input$price,
