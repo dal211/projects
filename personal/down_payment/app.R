@@ -22,6 +22,7 @@ run_scenario <- function(purchase_price, dp_pct,
   total_loan <- after_dp(purchase_price, dp_pct)
   
   if (isTRUE(split_enable)) {
+    # clamp loan1_amt
     loan1 <- pmin(pmax(loan1_amt, 0), total_loan)
     loan2 <- total_loan - loan1
     pmt1_a <- calc_annual_payment(loan1, rate1, term1)
@@ -90,6 +91,8 @@ scenarioInputUI <- function(id, label) {
 scenarioInputServer <- function(id, remove_callback) {
   moduleServer(id, function(input, output, session) {
     observeEvent(input$remove, { remove_callback(id) })
+    
+    # adjust dp and clamp loan1_amt when split enabled
     observeEvent(c(input$price, input$dp, input$split_enable), {
       total_loan <- input$price - input$dp
       updateSliderInput(session, "dp", max = input$price, value = round(input$price * 0.2, -3))
@@ -97,6 +100,20 @@ scenarioInputServer <- function(id, remove_callback) {
         updateNumericInput(session, "loan1_amt", min = 0, max = total_loan, value = min(input$loan1_amt %||% 0, total_loan))
       }
     }, ignoreInit = FALSE)
+    
+    # enforce constraint on typed values
+    observeEvent(input$loan1_amt, {
+      if (isTRUE(input$split_enable)) {
+        total_loan <- input$price - input$dp
+        if (!is.na(input$loan1_amt)) {
+          if (input$loan1_amt > total_loan) {
+            updateNumericInput(session, "loan1_amt", value = total_loan)
+          } else if (input$loan1_amt < 0) {
+            updateNumericInput(session, "loan1_amt", value = 0)
+          }
+        }
+      }
+    })
     
     reactive({
       list(
@@ -117,12 +134,10 @@ scenarioInputServer <- function(id, remove_callback) {
 # App UI
 ui <- fluidPage(
   fluidRow(
-    column(8,
-           tags$div(
-             h2("Compare Mortgage Scenarios"),
-             tags$a(href = "https://github.com/dal211/projects/tree/main/personal/down_payment", icon("github"), "GitHub", target = "_blank", style = "font-size:16px; text-decoration:none;")
-           )
-    ),
+    column(8, tags$div(h2("Compare Mortgage Scenarios"),
+                       tags$a(href = "https://github.com/dal211/projects/tree/main/personal/down_payment",
+                              icon("github"), "GitHub", target = "_blank",
+                              style = "font-size:16px; text-decoration:none;"))),
     column(4, align = "right", downloadButton("download_table", "Export CSV", class = "btn-sm"))
   ),
   hr(),
