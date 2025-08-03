@@ -13,7 +13,6 @@ library(tidycensus)
 library(ggplot2)
 library(usethis)
 library(scales)
-library(flexdashboard)
 library(readxl)
 library(openxlsx)
 library(fuzzyjoin)
@@ -41,11 +40,20 @@ ui <- fluidPage(
     column(
       width = 8,
       h2("Where Should I Live?"),
-      tags$a(
-        href   = "https://github.com/dal211/projects/tree/main/personal/town_explorer",
-        target = "_blank",
-        style  = "font-size:16px; text-decoration: none; display: inline-block; margin-top: -10px;",
-        icon("github"), "GitHub"
+      tags$div(
+        style = "margin-top: -10px;",
+        tags$a(
+          href   = "https://github.com/dal211/projects/tree/main/personal/town_map",
+          target = "_blank",
+          style  = "font-size:16px; text-decoration: none; margin-right: 20px;",
+          icon("github"), "GitHub"
+        ),
+        tags$a(
+          href   = "https://richardgasquet.shinyapps.io/down_payment/",
+          target = "_blank",
+          style  = "font-size:16px; text-decoration: none;",
+          icon("house"), "Mortgage Calculator"
+        )
       )
     )
   ),
@@ -68,28 +76,14 @@ ui <- fluidPage(
       # Top section
       tags$div(
         class = "spaced",
-        tags$h4("Where should I live?"),
         selectInput(
           "town_sel", "Pick a town:",
           choices = sort(unique(towns_sf$town_name)),
-          selected = "Shrewsbury"
+          selected = "Holliston"
         ),
         tags$p("Click on a town for detailed information."),
-        br()
+        tags$p(strong("Note:"), "This for initial exploration, you should visit the town and speak to real estate agents about your preferences."),
       ),
-      
-      # Bottom section
-      tags$div(
-        style = "margin: 0; padding: 0; text-align: left;",
-        tags$div(
-          style = "text-align: left;",
-          tags$a("Calculate your mortgage here",
-                 href   = "https://richardgasquet.shinyapps.io/down_payment/",
-                 target = "_blank",
-                 style  = "font-size:14px;"
-          )
-        )
-      )
     ),
     
     mainPanel(
@@ -135,7 +129,7 @@ server <- function(input, output, session) {
         )
       ) %>%
       addLegend(
-        position = "bottomleft",
+        position = "topright",
         colors  = c("#AB47BC", "#ffc107"),
         labels  = c("50–60th percentile", ">70th percentile"),
         title   = "<div style='font-size:13px;'>School Quality</div>",
