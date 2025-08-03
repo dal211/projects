@@ -107,7 +107,6 @@ ui <- fluidPage(
            actionButton("add_row", "Add Entry", class = "btn-sm"),
            br(), br(),
            wellPanel(
-             padding = "10px",
              uiOutput("entry_rows")
            )
     ),
@@ -131,7 +130,7 @@ server <- function(input, output, session) {
     next_id(new_id + 1)
   })
   
-  # Render rows
+  # Render rows inline
   output$entry_rows <- renderUI({
     tagList(lapply(rv$ids, function(i) entryRowUI(paste0("e", i))))
   })
@@ -150,15 +149,25 @@ server <- function(input, output, session) {
     }
   })
   
-  # Build table
+  # Build table with indentation and negative expenses
   table_data <- reactive({
     df <- map_dfr(rv$ids, function(i) entries[[paste0("e", i)]]())
     
+    # Make deductions & expenses negative, indent categories
+    df <- df %>% mutate(
+      Amount = if_else(Type %in% c("Deductions", "Expenses"), -Amount, Amount),
+      Category = case_when(
+        Type == "Deductions" ~ paste0("\u00A0\u00A0", Category),
+        Type == "Expenses"   ~ paste0("\u00A0\u00A0\u00A0\u00A0", Category),
+        TRUE                   ~ Category
+      )
+    )
+    
     total_inc <- sum(df$Amount[df$Type == "Income"], na.rm = TRUE)
     total_ded <- sum(df$Amount[df$Type == "Deductions"], na.rm = TRUE)
-    subtotal  <- total_inc - total_ded
+    subtotal  <- total_inc + total_ded  # since deductions are negative
     total_exp <- sum(df$Amount[df$Type == "Expenses"], na.rm = TRUE)
-    net_inc   <- subtotal - total_exp
+    net_inc   <- subtotal + total_exp   # expenses also negative
     
     bind_rows(
       df,
@@ -174,9 +183,22 @@ server <- function(input, output, session) {
   output$income_table <- renderDT({
     datatable(
       table_data(), rownames = FALSE,
-      options = list(dom = "t", paging = FALSE),
+      options = list(
+        dom = "t",
+        paging = FALSE,
+        rowCallback = DT::JS(
+          "function(row, data) {",
+          "  var labels = ['Total Income','Total Deductions','Adjusted Gross Income','Total Expenses','Net Income'];",
+          "  if (labels.includes(data[1])) {",
+          "    $('td', row).css({'border':'2px solid black'});",
+          "  }",
+          "}"
+        )
+      ),
+      escape = FALSE,
       colnames = c("Type", "Line Item", "Annual $")
-    ) %>% formatCurrency("Amount")
+    ) %>%
+      formatCurrency("Amount", digits = 2)
   })
   
   output$download_excel <- downloadHandler(
