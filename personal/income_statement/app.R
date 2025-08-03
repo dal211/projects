@@ -7,80 +7,60 @@ library(openxlsx)
 library(rsconnect)
 
 # --- Category choices ---
-income_cats     <- c(
+income_cats    <- c(
   "Paychecks/Salary",
   "Investment Income",
   "Rental Income",
   "Government Benefits"
 )
-deduction_cats  <- c(
+deduction_cats <- c(
   "Total Taxes",
   "Retirement Deduction",
   "Health Insurance Deduction",
   "Long-term Disability Deduction",
   "Transit Deduction"
 )
-expense_cats    <- c(
-  "Rent",
-  "Groceries",
-  "Restaurants",
-  "General Merchandise",
-  "Travel",
-  "Insurance",
-  "Healthcare/Medical",
-  "Taxes",
-  "Entertainment",
-  "Cable/Satellite",
-  "Online Services",
-  "Personal Care",
-  "Clothing/Shoes",
-  "Gasoline/Fuel",
-  "Charitable Giving",
-  "Dues & Subscriptions",
-  "Education",
-  "Electronics",
-  "Automotive",
-  "Utilities",
-  "Home Improvement",
-  "Office Supplies",
-  "Gifts",
-  "Printing",
-  "Postage & Shipping",
-  "Service Charges/Fees",
-  "Telephone",
-  "Hobbies"
+expense_cats   <- c(
+  "Rent", "Groceries", "Restaurants", "General Merchandise",
+  "Travel", "Insurance", "Healthcare/Medical", "Taxes",
+  "Entertainment", "Cable/Satellite", "Online Services",
+  "Personal Care", "Clothing/Shoes", "Gasoline/Fuel",
+  "Charitable Giving", "Dues & Subscriptions", "Education",
+  "Electronics", "Automotive", "Utilities", "Home Improvement",
+  "Office Supplies", "Gifts", "Printing", "Postage & Shipping",
+  "Service Charges/Fees", "Telephone", "Hobbies"
 )
 
-# --- Per-row UI module ---
+# --- Per-row UI module (inline rows) ---
 entryRowUI <- function(id) {
   ns <- NS(id)
-  wellPanel(
-    fluidRow(
-      column(3,
-             selectInput(ns("type"), NULL,
-                         choices = c("Income", "Deductions", "Expenses")
-             )
-      ),
-      column(5,
-             conditionalPanel(
-               condition = sprintf("input['%s'] == 'Income'", ns("type")),
-               selectInput(ns("category_inc"), NULL, choices = income_cats)
-             ),
-             conditionalPanel(
-               condition = sprintf("input['%s'] == 'Deductions'", ns("type")),
-               selectInput(ns("category_ded"), NULL, choices = deduction_cats)
-             ),
-             conditionalPanel(
-               condition = sprintf("input['%s'] == 'Expenses'", ns("type")),
-               selectInput(ns("category_exp"), NULL, choices = expense_cats)
-             )
-      ),
-      column(3,
-             numericInput(ns("amount"), NULL, value = 0, min = 0, step = 100)
-      ),
-      column(1,
-             actionButton(ns("remove"), NULL, icon = icon("times"), class = "btn-sm")
-      )
+  fluidRow(
+    style = "margin-bottom: 5px;",
+    column(3,
+           selectInput(ns("type"), NULL,
+                       choices = c("Income", "Deductions", "Expenses"),
+                       width = "100%"
+           )
+    ),
+    column(5,
+           conditionalPanel(
+             condition = sprintf("input['%s'] == 'Income'", ns("type")),
+             selectInput(ns("category_inc"), NULL, choices = income_cats, width = "100%")
+           ),
+           conditionalPanel(
+             condition = sprintf("input['%s'] == 'Deductions'", ns("type")),
+             selectInput(ns("category_ded"), NULL, choices = deduction_cats, width = "100%")
+           ),
+           conditionalPanel(
+             condition = sprintf("input['%s'] == 'Expenses'", ns("type")),
+             selectInput(ns("category_exp"), NULL, choices = expense_cats, width = "100%")
+           )
+    ),
+    column(3,
+           numericInput(ns("amount"), NULL, value = 0, min = 0, step = 100, width = "100%")
+    ),
+    column(1,
+           actionButton(ns("remove"), NULL, icon = icon("times"), class = "btn-sm")
     )
   )
 }
@@ -91,13 +71,13 @@ entryRowServer <- function(id, remove_callback) {
     observeEvent(input$remove, { remove_callback(id) })
     reactive({
       list(
-        type     = input$type,
-        category = case_when(
+        Type     = input$type,
+        Category = case_when(
           input$type == "Income"     ~ input$category_inc,
           input$type == "Deductions" ~ input$category_ded,
           TRUE                          ~ input$category_exp
         ),
-        amount   = input$amount
+        Amount   = input$amount
       )
     })
   })
@@ -111,8 +91,7 @@ ui <- fluidPage(
              h2("Household Income Statement"),
              tags$a(
                href = "https://github.com/dal211/projects/tree/main/personal/household_income_statement",
-               icon("github"), "GitHub",
-               target = "_blank",
+               icon("github"), "GitHub", target = "_blank",
                style = "font-size:16px; text-decoration:none;"
              )
            )
@@ -127,7 +106,10 @@ ui <- fluidPage(
            h4("Entries"),
            actionButton("add_row", "Add Entry", class = "btn-sm"),
            br(), br(),
-           uiOutput("entry_rows")
+           wellPanel(
+             padding = "10px",
+             uiOutput("entry_rows")
+           )
     ),
     column(8,
            h4("Income Statement"),
@@ -170,14 +152,7 @@ server <- function(input, output, session) {
   
   # Build table
   table_data <- reactive({
-    df <- map_dfr(rv$ids, function(i) {
-      vals <- entries[[paste0("e", i)]]()
-      tibble(
-        Type     = vals$type,
-        Category = vals$category,
-        Amount   = vals$amount
-      )
-    })
+    df <- map_dfr(rv$ids, function(i) entries[[paste0("e", i)]]())
     
     total_inc <- sum(df$Amount[df$Type == "Income"], na.rm = TRUE)
     total_ded <- sum(df$Amount[df$Type == "Deductions"], na.rm = TRUE)
@@ -187,20 +162,19 @@ server <- function(input, output, session) {
     
     bind_rows(
       df,
-      tibble(Type = "", "Category" = "—",                         Amount = NA_real_),
-      tibble(Type = "", "Category" = "Total Income",              Amount = total_inc),
-      tibble(Type = "", "Category" = "Total Deductions",          Amount = total_ded),
-      tibble(Type = "", "Category" = "Adjusted Gross Income",      Amount = subtotal),
-      tibble(Type = "", "Category" = "Total Expenses",            Amount = total_exp),
-      tibble(Type = "", "Category" = "Net Income",                Amount = net_inc)
+      tibble(Type = "",                Category = "—",                Amount = NA_real_),
+      tibble(Type = "Total Income",    Category = "",                   Amount = total_inc),
+      tibble(Type = "Total Deductions",Category = "",                   Amount = total_ded),
+      tibble(Type = "Adjusted Gross Income", Category = "",            Amount = subtotal),
+      tibble(Type = "Total Expenses",  Category = "",                   Amount = total_exp),
+      tibble(Type = "Net Income",      Category = "",                   Amount = net_inc)
     )
   })
   
   output$income_table <- renderDT({
     datatable(
-      table_data(),
-      rownames = FALSE,
-      options  = list(dom = "t", paging = FALSE),
+      table_data(), rownames = FALSE,
+      options = list(dom = "t", paging = FALSE),
       colnames = c("Type", "Line Item", "Annual $")
     ) %>% formatCurrency("Amount")
   })
