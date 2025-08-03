@@ -80,6 +80,10 @@ scenarioInputUI <- function(id, label) {
     conditionalPanel(
       condition = sprintf("input['%s'] == true", ns("split_enable")),
       numericInput(ns("loan1_amt"), "Loan #1 Amount ($)", value = 0, min = 0, max = 0, step = 1000),
+        tags$div(style = "margin-top: 10px;",
+    strong("Loan #2 Amount ($)"),
+    textOutput(ns("loan2_amt"))
+  ),
       sliderInput(ns("rate2"), "Mortgage Rate #2", min = 0.01, max = 0.1, value = 0.04, step = 0.001),
       selectInput(ns("term2"), "Loan Term #2 (years)", choices = c(10, 15, 20, 30), selected = 20)
     ),
@@ -90,6 +94,7 @@ scenarioInputUI <- function(id, label) {
 # Server logic for one scenario block
 scenarioInputServer <- function(id, remove_callback) {
   moduleServer(id, function(input, output, session) {
+    
     observeEvent(input$remove, { remove_callback(id) })
     
     # inside scenarioInputServer:
@@ -132,6 +137,13 @@ scenarioInputServer <- function(id, remove_callback) {
       if (!is.na(input$tax_rate) && input$tax_rate > 3) {
         updateNumericInput(session, "tax_rate", value = 3)
       }
+    })
+    
+    output$loan2_amt <- renderText({
+      if (!isTRUE(input$split_enable)) return(NULL)
+      total_loan <- input$price - input$dp
+      loan2      <- total_loan - input$loan1_amt
+      paste0("$", format(round(loan2), big.mark = ","))
     })
     
     reactive({
