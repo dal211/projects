@@ -125,6 +125,19 @@ entryRowServer <- function(id) {
 
 # --- UI ---
 ui <- fluidPage(
+  ui <- fluidPage(
+    tags$head(
+      tags$style(HTML("
+      /* zoom out the whole app to 85% */
+      body {
+        zoom: 0.85;
+      }
+    "))
+    ),
+    
+    # … the rest of your UI …
+  ),
+  
   fluidRow(
     column(8,
            tags$div(
