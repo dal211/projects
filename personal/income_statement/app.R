@@ -6,6 +6,84 @@ library(DT)
 library(openxlsx)
 library(rsconnect)
 
+# --- Category choices ---
+income_cats  <- c("Paychecks/Salary")
+expense_cats <- c(
+  "Rent",
+  "Groceries",
+  "Restaurants",
+  "General Merchandise",
+  "Travel",
+  "Insurance",
+  "Healthcare/Medical",
+  "Taxes",
+  "Entertainment",
+  "Cable/Satellite",
+  "Online Services",
+  "Personal Care",
+  "Clothing/Shoes",
+  "Gasoline/Fuel",
+  "Charitable Giving",
+  "Dues & Subscriptions",
+  "Education",
+  "Electronics",
+  "Automotive",
+  "Utilities",
+  "Home Improvement",
+  "Office Supplies",
+  "Gifts",
+  "Printing",
+  "Postage & Shipping",
+  "Service Charges/Fees",
+  "Telephone",
+  "Hobbies"
+)
+
+# --- Per-row UI module ---
+entryRowUI <- function(id) {
+  ns <- NS(id)
+  wellPanel(
+    fluidRow(
+      column(3,
+             selectInput(
+               ns("type"), NULL,
+               choices = c("Income", "Expenses")
+             )
+      ),
+      column(5,
+             conditionalPanel(
+               condition = sprintf("input['%s'] == 'Income'", ns("type")),
+               selectInput(ns("category_inc"), NULL, choices = income_cats)
+             ),
+             conditionalPanel(
+               condition = sprintf("input['%s'] == 'Expenses'", ns("type")),
+               selectInput(ns("category_exp"), NULL, choices = expense_cats)
+             )
+      ),
+      column(3,
+             numericInput(ns("amount"), NULL, value = 0, min = 0, step = 100)
+      ),
+      column(1,
+             actionButton(ns("remove"), NULL, icon = icon("times"), class = "btn-sm")
+      )
+    )
+  )
+}
+
+# --- Per-row server module ---
+entryRowServer <- function(id, remove_callback) {
+  moduleServer(id, function(input, output, session) {
+    observeEvent(input$remove, { remove_callback(id) })
+    reactive({
+      list(
+        type     = input$type,
+        category = if (input$type == "Income") input$category_inc else input$category_exp,
+        amount   = input$amount
+      )
+    })
+  })
+}
+
 # --- UI ---
 ui <- fluidPage(
   fluidRow(
@@ -27,12 +105,10 @@ ui <- fluidPage(
   hr(),
   fluidRow(
     column(4,
-           h4("Enter Annual Amounts"),
-           numericInput("salary",       "Salary ($)",              value = 50000, step = 1000),
-           numericInput("other_inc",    "Other Income ($)",        value =  5000, step =  500),
-           numericInput("mort_pi",      "Mortgage P&I ($)",        value = 12000, step =  500),
-           numericInput("prop_tax",     "Property Tax ($)",        value =  3600, step =  100),
-           numericInput("insurance",    "Insurance ($)",           value =   600, step =   50)
+           h4("Entries"),
+           actionButton("add_row", "Add Entry", class = "btn-sm"),
+           br(), br(),
+           uiOutput("entry_rows")
     ),
     column(8,
            h4("Income Statement"),
@@ -43,42 +119,59 @@ ui <- fluidPage(
 
 # --- Server ---
 server <- function(input, output, session) {
+  rv      <- reactiveValues(ids = 1)
+  next_id <- reactiveVal(2)
+  entries <- reactiveValues()
   
+  # Add new row
+  observeEvent(input$add_row, {
+    new_id <- next_id()
+    rv$ids <- c(rv$ids, new_id)
+    next_id(new_id + 1)
+  })
+  
+  # Render rows
+  output$entry_rows <- renderUI({
+    tagList(lapply(rv$ids, function(i) entryRowUI(paste0("e", i))))
+  })
+  
+  # Launch modules
+  observe({
+    for (i in rv$ids) {
+      key <- paste0("e", i)
+      if (is.null(entries[[key]])) {
+        entries[[key]] <- entryRowServer(key, function(id_to_rm) {
+          id_num <- as.numeric(sub("^e", "", id_to_rm))
+          rv$ids <- setdiff(rv$ids, id_num)
+          entries[[id_to_rm]] <- NULL
+        })
+      }
+    }
+  })
+  
+  # Build table
   table_data <- reactive({
-    # pull inputs
-    salary    <- input$salary
-    other_inc <- input$other_inc
-    mort_pi   <- input$mort_pi
-    prop_tax  <- input$prop_tax
-    insurance <- input$insurance
+    df <- map_dfr(rv$ids, function(i) {
+      vals <- entries[[paste0("e", i)]]()
+      tibble(Category = vals$category, Amount = vals$amount)
+    })
     
-    total_inc <- salary + other_inc
-    total_exp <- mort_pi + prop_tax + insurance
-    net_inc   <- total_inc - total_exp
+    total_inc <- df %>%
+      filter(Category %in% income_cats) %>%
+      summarize(sum = sum(Amount, na.rm = TRUE)) %>% pull(sum)
     
-    tibble(
-      Category       = c(
-        "Salary",
-        "Other Income",
-        "Mortgage P&I",
-        "Property Tax",
-        "Insurance",
-        "—",
-        "Total Income",
-        "Total Expenses",
-        "Net Income"
-      ),
-      Amount = c(
-        salary,
-        other_inc,
-        mort_pi,
-        prop_tax,
-        insurance,
-        NA,
-        total_inc,
-        total_exp,
-        net_inc
-      )
+    total_exp <- df %>%
+      filter(Category %in% expense_cats) %>%
+      summarize(sum = sum(Amount, na.rm = TRUE)) %>% pull(sum)
+    
+    net_inc <- total_inc - total_exp
+    
+    bind_rows(
+      df,
+      tibble(Category = "—",              Amount = NA_real_),
+      tibble(Category = "Total Income",   Amount = total_inc),
+      tibble(Category = "Total Expenses", Amount = total_exp),
+      tibble(Category = "Net Income",     Amount = net_inc)
     )
   })
   
@@ -87,17 +180,13 @@ server <- function(input, output, session) {
       table_data(),
       rownames = FALSE,
       options  = list(dom = "t", paging = FALSE),
-      colnames = c("Line Item", "Annual $"),
-      escape   = FALSE
-    ) %>% 
-      formatCurrency("Amount")
+      colnames = c("Line Item", "Annual $")
+    ) %>% formatCurrency("Amount")
   })
   
   output$download_excel <- downloadHandler(
-    filename = function() {
-      sprintf("household_income_%s.xlsx", Sys.Date())
-    },
-    content = function(file) {
+    filename = function() sprintf("household_income_%s.xlsx", Sys.Date()),
+    content  = function(file) {
       wb <- createWorkbook()
       addWorksheet(wb, "Income Statement")
       writeData(wb, "Income Statement", table_data())
