@@ -7,7 +7,12 @@ library(openxlsx)
 library(rsconnect)
 
 # --- Category choices ---
-income_cats     <- c("Paychecks/Salary")
+income_cats     <- c(
+  "Paychecks/Salary",
+  "Investment Income",
+  "Rental Income",
+  "Government Benefits"
+)
 deduction_cats  <- c(
   "Total Taxes",
   "Retirement Deduction",
@@ -52,9 +57,8 @@ entryRowUI <- function(id) {
   wellPanel(
     fluidRow(
       column(3,
-             selectInput(
-               ns("type"), NULL,
-               choices = c("Income", "Deductions", "Expenses")
+             selectInput(ns("type"), NULL,
+                         choices = c("Income", "Deductions", "Expenses")
              )
       ),
       column(5,
@@ -175,28 +179,20 @@ server <- function(input, output, session) {
       )
     })
     
-    total_inc <- df %>%
-      filter(Type == "Income") %>%
-      pull(Amount) %>% sum(na.rm = TRUE)
+    total_inc <- sum(df$Amount[df$Type == "Income"], na.rm = TRUE)
+    total_ded <- sum(df$Amount[df$Type == "Deductions"], na.rm = TRUE)
+    subtotal  <- total_inc - total_ded
+    total_exp <- sum(df$Amount[df$Type == "Expenses"], na.rm = TRUE)
+    net_inc   <- subtotal - total_exp
     
-    total_ded <- df %>%
-      filter(Type == "Deductions") %>%
-      pull(Amount) %>% sum(na.rm = TRUE)
-    
-    total_exp <- df %>%
-      filter(Type == "Expenses") %>%
-      pull(Amount) %>% sum(na.rm = TRUE)
-    
-    net_inc <- total_inc - total_ded - total_exp
-    
-    # Summary rows in desired order
     bind_rows(
       df,
-      tibble(Type = "","Category" = "—",                      Amount = NA_real_),
-      tibble(Type = "","Category" = "Total Income",           Amount = total_inc),
-      tibble(Type = "","Category" = "Total Deductions",       Amount = total_ded),
-      tibble(Type = "","Category" = "Total Expenses",         Amount = total_exp),
-      tibble(Type = "","Category" = "Net Income",            Amount = net_inc)
+      tibble(Type = "", "Category" = "—",                         Amount = NA_real_),
+      tibble(Type = "", "Category" = "Total Income",              Amount = total_inc),
+      tibble(Type = "", "Category" = "Total Deductions",          Amount = total_ded),
+      tibble(Type = "", "Category" = "Adjusted Gross Income",      Amount = subtotal),
+      tibble(Type = "", "Category" = "Total Expenses",            Amount = total_exp),
+      tibble(Type = "", "Category" = "Net Income",                Amount = net_inc)
     )
   })
   
