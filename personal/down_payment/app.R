@@ -92,14 +92,26 @@ scenarioInputServer <- function(id, remove_callback) {
   moduleServer(id, function(input, output, session) {
     observeEvent(input$remove, { remove_callback(id) })
     
-    # adjust dp and clamp loan1_amt when split enabled
-    observeEvent(c(input$price, input$dp, input$split_enable), {
-      total_loan <- input$price - input$dp
-      updateSliderInput(session, "dp", max = input$price, value = round(input$price * 0.2, -3))
-      if (isTRUE(input$split_enable)) {
-        updateNumericInput(session, "loan1_amt", min = 0, max = total_loan, value = min(input$loan1_amt %||% 0, total_loan))
-      }
-    }, ignoreInit = FALSE)
+    # inside scenarioInputServer:
+    observeEvent(input$price, {
+      # only update the slider max; leave `value` untouched
+      updateSliderInput(session, "dp",
+                        max = input$price
+      )
+    }, ignoreInit = TRUE)
+    
+    # 1) Adjust DP slider **only** on price change,
+    #    clamping the current dp if needed but otherwise preserving it.
+    observeEvent(input$price, {
+      old_dp   <- input$dp
+      new_max  <- input$price
+      # if they’d chosen more than the new price, drop to new price
+      new_dp   <- min(old_dp, new_max)
+      updateSliderInput(session, "dp",
+                        max   = new_max,
+                        value = new_dp
+      )
+    }, ignoreInit = TRUE)
     
     # enforce constraint on typed values
     observeEvent(input$loan1_amt, {
@@ -141,10 +153,19 @@ scenarioInputServer <- function(id, remove_callback) {
 # App UI
 ui <- fluidPage(
   fluidRow(
-    column(8, tags$div(h2("Compare Mortgage Scenarios"),
-                       tags$a(href = "https://github.com/dal211/projects/tree/main/personal/down_payment",
-                              icon("github"), "GitHub", target = "_blank",
-                              style = "font-size:16px; text-decoration:none;"))),
+    column(8, tags$div(
+      h2("Compare Mortgage Scenarios"),
+      tags$a(
+        href = "https://github.com/dal211/projects/tree/main/personal/down_payment",
+        icon("github"), "GitHub", target = "_blank",
+        style = "font-size:16px; text-decoration:none; margin-right: 15px;"
+      ),
+      tags$a(
+        href = "https://richardgasquet.shinyapps.io/income_statement/",
+        icon("file-invoice-dollar"), "See how your mortgage impacts your income", target = "_blank",
+        style = "font-size:16px; text-decoration:none;"
+      )
+    )),
     column(4, align = "right", downloadButton("download_table", "Export CSV", class = "btn-sm"))
   ),
   hr(),
@@ -153,6 +174,7 @@ ui <- fluidPage(
     column(8, DTOutput("comparison_table"))
   )
 )
+
 
 # App server
 server <- function(input, output, session) {

@@ -5,6 +5,6 @@ account: richardgasquet
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 15038540
-bundleId: 10689231
+bundleId: 10718321
 url: https://richardgasquet.shinyapps.io/down_payment/
 version: 1
