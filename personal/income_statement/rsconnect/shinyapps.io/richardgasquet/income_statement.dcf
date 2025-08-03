@@ -5,6 +5,6 @@ account: richardgasquet
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 15154256
-bundleId: 10718294
+bundleId: 10720219
 url: https://richardgasquet.shinyapps.io/income_statement/
 version: 1
