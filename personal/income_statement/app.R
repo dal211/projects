@@ -253,11 +253,11 @@ server <- function(input, output, session) {
     summary_rows <- tribble(
       ~Type,                  ~Category, ~Annual,     ~Monthly,
       "",                     "—",        NA_real_,    NA_real_,
-      "Total Income",         "",         total_inc,   total_inc/12,
-      "Total Deductions",     "",         total_ded,   total_ded/12,
-      "Total Take-Home-Pay",  "",         subtotal,    subtotal/12,
-      "Total Expenses",       "",         total_exp,   total_exp/12,
-      "Total Savings",        "",         net_inc,     net_inc/12
+      "Total Income",         "All money you earn",         total_inc,   total_inc/12,
+      "Total Deductions",     "Money taken from paychecks",         total_ded,   total_ded/12,
+      "Total Take-Home-Pay",  "What you actually receive",         subtotal,    subtotal/12,
+      "Total Expenses",       "All your spending",         total_exp,   total_exp/12,
+      "Total Savings",        "What you put aside",         net_inc,     net_inc/12
     )
     
     # 5) Stitch together and return
@@ -273,11 +273,29 @@ server <- function(input, output, session) {
       table_data(),
       rownames = FALSE,
       escape   = FALSE,
-      options  = list(dom = "t", paging = FALSE),
+      options  = list(
+        dom = "t",
+        paging = FALSE,
+        ordering = FALSE,
+        rowCallback = DT::JS(
+          "function(row, data){",
+          "  var labels = ['Total Income','Total Deductions',",
+          "                'Total Take-Home-Pay','Total Expenses','Total Savings'];",
+          "  if(labels.includes(data[0])){",
+          "    // bold + border-top for summary rows",
+          "    $('td', row).css({",
+          "      'font-weight':'bold',",
+          "      'border-top':'2px solid #333'",
+          "    });",
+          "  }",
+          "}"
+        )
+      ),
       colnames = c("Type", "Line Item", "Monthly $", "Annual $")
     ) %>%
-      formatCurrency(c("Annual", "Monthly"), digits = 2)
+      formatCurrency(c("Monthly", "Annual"), digits = 2)
   })
+  
   
   
   output$download_excel <- downloadHandler(
