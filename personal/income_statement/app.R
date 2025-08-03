@@ -7,8 +7,15 @@ library(openxlsx)
 library(rsconnect)
 
 # --- Category choices ---
-income_cats  <- c("Paychecks/Salary")
-expense_cats <- c(
+income_cats     <- c("Paychecks/Salary")
+deduction_cats  <- c(
+  "Total Taxes",
+  "Retirement Deduction",
+  "Health Insurance Deduction",
+  "Long-term Disability Deduction",
+  "Transit Deduction"
+)
+expense_cats    <- c(
   "Rent",
   "Groceries",
   "Restaurants",
@@ -47,13 +54,17 @@ entryRowUI <- function(id) {
       column(3,
              selectInput(
                ns("type"), NULL,
-               choices = c("Income", "Expenses")
+               choices = c("Income", "Deductions", "Expenses")
              )
       ),
       column(5,
              conditionalPanel(
                condition = sprintf("input['%s'] == 'Income'", ns("type")),
                selectInput(ns("category_inc"), NULL, choices = income_cats)
+             ),
+             conditionalPanel(
+               condition = sprintf("input['%s'] == 'Deductions'", ns("type")),
+               selectInput(ns("category_ded"), NULL, choices = deduction_cats)
              ),
              conditionalPanel(
                condition = sprintf("input['%s'] == 'Expenses'", ns("type")),
@@ -77,7 +88,11 @@ entryRowServer <- function(id, remove_callback) {
     reactive({
       list(
         type     = input$type,
-        category = if (input$type == "Income") input$category_inc else input$category_exp,
+        category = case_when(
+          input$type == "Income"     ~ input$category_inc,
+          input$type == "Deductions" ~ input$category_ded,
+          TRUE                          ~ input$category_exp
+        ),
         amount   = input$amount
       )
     })
@@ -153,25 +168,35 @@ server <- function(input, output, session) {
   table_data <- reactive({
     df <- map_dfr(rv$ids, function(i) {
       vals <- entries[[paste0("e", i)]]()
-      tibble(Category = vals$category, Amount = vals$amount)
+      tibble(
+        Type     = vals$type,
+        Category = vals$category,
+        Amount   = vals$amount
+      )
     })
     
     total_inc <- df %>%
-      filter(Category %in% income_cats) %>%
-      summarize(sum = sum(Amount, na.rm = TRUE)) %>% pull(sum)
+      filter(Type == "Income") %>%
+      pull(Amount) %>% sum(na.rm = TRUE)
+    
+    total_ded <- df %>%
+      filter(Type == "Deductions") %>%
+      pull(Amount) %>% sum(na.rm = TRUE)
     
     total_exp <- df %>%
-      filter(Category %in% expense_cats) %>%
-      summarize(sum = sum(Amount, na.rm = TRUE)) %>% pull(sum)
+      filter(Type == "Expenses") %>%
+      pull(Amount) %>% sum(na.rm = TRUE)
     
-    net_inc <- total_inc - total_exp
+    net_inc <- total_inc - total_ded - total_exp
     
+    # Summary rows in desired order
     bind_rows(
       df,
-      tibble(Category = "—",              Amount = NA_real_),
-      tibble(Category = "Total Income",   Amount = total_inc),
-      tibble(Category = "Total Expenses", Amount = total_exp),
-      tibble(Category = "Net Income",     Amount = net_inc)
+      tibble(Type = "","Category" = "—",                      Amount = NA_real_),
+      tibble(Type = "","Category" = "Total Income",           Amount = total_inc),
+      tibble(Type = "","Category" = "Total Deductions",       Amount = total_ded),
+      tibble(Type = "","Category" = "Total Expenses",         Amount = total_exp),
+      tibble(Type = "","Category" = "Net Income",            Amount = net_inc)
     )
   })
   
@@ -180,7 +205,7 @@ server <- function(input, output, session) {
       table_data(),
       rownames = FALSE,
       options  = list(dom = "t", paging = FALSE),
-      colnames = c("Line Item", "Annual $")
+      colnames = c("Type", "Line Item", "Annual $")
     ) %>% formatCurrency("Amount")
   })
   
