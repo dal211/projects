@@ -182,7 +182,8 @@ ui <- fluidPage(
   ),
   hr(),
   fluidRow(
-    column(4, actionButton("add_scenario", "Add Scenario"), br(), br(), uiOutput("scenario_inputs")),
+    column(4, actionButton("add_scenario", "Add Scenario"), br(), br(),
+    div(id = "scenario_container"), uiOutput("scenario_inputs")),
     column(8, DTOutput("comparison_table"))
   )
 )
@@ -191,61 +192,79 @@ ui <- fluidPage(
 # App server
 server <- function(input, output, session) {
   max_blocks <- 11
-  rv <- reactiveValues(ids = 1)
-  next_id <- reactiveVal(2)
-  
-  observeEvent(input$add_scenario, {
-    if (length(rv$ids) < max_blocks) {
-      rv$ids <- c(rv$ids, next_id())
-      next_id(next_id() + 1)
-    }
-  })
-  
-  output$scenario_inputs <- renderUI({
-    lapply(rv$ids, function(i) scenarioInputUI(paste0("s", i), strong(paste("Scenario", i))))
-  })
-  
+  rv         <- reactiveValues(ids = character())
+  next_id    <- reactiveVal(1)
   scenario_values <- reactiveValues()
-  observe({
-    for (i in rv$ids) {
-      id0 <- paste0("s", i)
-      if (is.null(scenario_values[[id0]])) {
-        scenario_values[[id0]] <- scenarioInputServer(id0, function(rm) {
-          if (length(rv$ids) > 1) {
-            rv$ids <- setdiff(rv$ids, i)
-            scenario_values[[rm]] <- NULL
-          }
-        })
-      }
-    }
+  
+  # 1) On app start, insert the first scenario
+  observeEvent(TRUE, {
+    id <- paste0("s", next_id())
+    insertUI(
+      selector = "#scenario_container",
+      where    = "beforeEnd",
+      ui       = scenarioInputUI(id, strong(paste("Scenario", next_id())))
+    )
+    scenario_values[[id]] <- scenarioInputServer(id, function(rm) {
+      removeUI(selector = paste0("#", rm, "-row"))
+      rv$ids <- setdiff(rv$ids, rm)
+      scenario_values[[rm]] <- NULL
+    })
+    rv$ids <- c(rv$ids, id)
+    next_id(next_id() + 1)
+  }, once = TRUE)
+  
+  # 2) When “Add Scenario” is clicked, append exactly one new block
+  observeEvent(input$add_scenario, {
+    req(length(rv$ids) < max_blocks)
+    id <- paste0("s", next_id())
+    insertUI(
+      selector = "#scenario_container",
+      where    = "beforeEnd",
+      ui       = scenarioInputUI(id, strong(paste("Scenario", next_id())))
+    )
+    scenario_values[[id]] <- scenarioInputServer(id, function(rm) {
+      removeUI(selector = paste0("#", rm, "-row"))
+      rv$ids <- setdiff(rv$ids, rm)
+      scenario_values[[rm]] <- NULL
+    })
+    rv$ids <- c(rv$ids, id)
+    next_id(next_id() + 1)
   })
   
+  # 3) Build the comparison table from whatever scenarios currently exist
   table_data <- reactive({
     req(rv$ids)
     map_dfr(rv$ids, function(i) {
-      vals <- scenario_values[[paste0("s", i)]]()
+      vals <- scenario_values[[i]]()
       run_scenario(
         purchase_price = vals$price,
-        dp_pct = vals$dp_pct,
-        rate1 = vals$rate1,
-        term1 = vals$term1,
-        split_enable = vals$split_enable,
-        loan1_amt = vals$loan1_amt,
-        rate2 = vals$rate2,
-        term2 = vals$term2,
-        tax_rate = vals$tax_rate
+        dp_pct         = vals$dp_pct,
+        rate1          = vals$rate1,
+        term1          = vals$term1,
+        split_enable   = vals$split_enable,
+        loan1_amt      = vals$loan1_amt,
+        rate2          = vals$rate2,
+        term2          = vals$term2,
+        tax_rate       = vals$tax_rate
       )
     })
   })
   
+  # 4) Render the DT
   output$comparison_table <- renderDT({
-    datatable(table_data(), rownames = FALSE, escape = FALSE, options = list(dom = "t"))
+    datatable(table_data(),
+              rownames = FALSE,
+              escape   = FALSE,
+              options  = list(dom = "t"))
   })
   
+  # 5) CSV download
   output$download_table <- downloadHandler(
     filename = function() sprintf("mortgage_scenarios_%s.csv", Sys.Date()),
-    content = function(file) write_csv(table_data(), file)
+    content  = function(file) write_csv(table_data(), file)
   )
 }
 
+# If this is a single-file app, end with:
 shinyApp(ui, server)
+
