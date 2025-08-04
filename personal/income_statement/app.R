@@ -176,7 +176,7 @@ ui <- fluidPage(
            )
     ),
     column(8,
-           h4("Income Statement"),
+           h4("Income, Expenses, and Savings"),
            DTOutput("income_table")
     )
   )
