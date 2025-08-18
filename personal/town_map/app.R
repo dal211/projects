@@ -97,14 +97,19 @@ ui <- fluidPage(
   )
 )
 
+maptiler_api_key <- Sys.getenv("MAPTILER_API_KEY")
+style_key <- paste0("https://api.maptiler.com/maps/streets-v2/style.json?key=", maptiler_api_key)
+
 # ---- Server ----
 server <- function(input, output, session) {
   message("🚀 app starting — reaching server()")
   
   # Initial Map
   output$townMap <- renderMaplibre({
-    maplibre() |>
-      set_view(center = c(-71.7, 42.2), zoom = 8.49) |>
+    maplibre(
+      style = style_key
+    ) |>
+      fit_bounds(towns_map) |>
       add_line_layer(
         id     = "commuter",
         source = commuter_shapes_sf,
