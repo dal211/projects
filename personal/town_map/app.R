@@ -19,6 +19,9 @@ commuter_shapes_sf <- readRDS("data/shapes_sf.rds") |>
   st_transform(4326) |>
   st_make_valid()
 
+# Massachusetts bounding box for OSM (left,top,right,bottom)
+ma_viewbox <- "-73.508,42.886,-69.927,41.237"
+
 # Build popup HTML and keep only needed columns
 towns_map <- towns_sf |>
   mutate(
@@ -176,7 +179,7 @@ server <- function(input, output, session) {
       fit_bounds(sf_sel, animate = TRUE)
   })
   
-  # Address lookup (street + MA town dropdown) -> pin + zoom
+  # Address lookup (street + MA town dropdown) using dplyr-mode geocode -> pin + zoom
   observeEvent(input$addr_go, {
     street <- trimws(input$addr_street %||% "")
     town   <- trimws(input$addr_town   %||% "")
@@ -185,16 +188,22 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
     
-    # Keep search strictly in Massachusetts
-    query <- paste(street, town, "MA, USA", sep = ", ")
+    # Build query in a tibble so geocode runs in dplyr mode
+    df <- tibble(addr = paste(street, town, "MA, USA", sep = ", "))
     
     res <- try(
-      tidygeocoder::geocode(address = query, method = "osm", limit = 1, mode = "single"),
+      df %>%
+        geocode(
+          address = addr,
+          method  = "osm",
+          limit   = 1,
+          custom_query = list(countrycodes = "us", viewbox = ma_viewbox, bounded = 1)
+        ),
       silent = TRUE
     )
-    ok <- !(inherits(res, "try-error") || nrow(res) == 0 ||
-              any(is.na(res[, c("long","lat")])))
-    if (!ok) {
+    
+    if (inherits(res, "try-error") || nrow(res) == 0 ||
+        any(is.na(res[, c("long","lat")]))) {
       showNotification("Address not found.", type = "error")
       return(invisible(NULL))
     }
@@ -215,8 +224,8 @@ server <- function(input, output, session) {
         circle_radius = 6,
         circle_stroke_color = "white",
         circle_stroke_width = 2,
-        tooltip = query,
-        popup   = query
+        tooltip = df$addr[1],
+        popup   = df$addr[1]
       ) |>
       fit_bounds(view_win, animate = TRUE)
   })
