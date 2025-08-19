@@ -7,7 +7,7 @@ library(sf)
 library(tidyverse)
 library(scales)
 library(mapgl)
-library(tidygeocoder)
+library(httr)         # <-- use httr instead of httr2
 
 # ---- Data ----
 towns_sf <- readRDS("data/towns_sf.rds") |>
@@ -18,9 +18,6 @@ towns_sf <- readRDS("data/towns_sf.rds") |>
 commuter_shapes_sf <- readRDS("data/shapes_sf.rds") |>
   st_transform(4326) |>
   st_make_valid()
-
-# Massachusetts bounding box for OSM (left,top,right,bottom)
-ma_viewbox <- "-73.508,42.886,-69.927,41.237"
 
 # Build popup HTML and keep only needed columns
 towns_map <- towns_sf |>
@@ -90,24 +87,17 @@ ui <- fluidPage(
       ",
       tags$div(
         class = "spaced",
-        
-        # 1) Town picker FIRST — starts unselected
         selectInput(
           "town_sel", "Pick a town:",
           choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
           selected = ""
         ),
-        
         div(class = "or-divider", "OR"),
-        
-        # 2) Address entry (street + MA town dropdown)
-        textInput("addr_street", "Street address:",
-                  placeholder = "e.g., 24 Beacon St"),
+        textInput("addr_street", "Street address:", placeholder = "e.g., 24 Beacon St"),
         selectInput("addr_town", "Town:",
                     choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
                     selected = ""),
         actionButton("addr_go", "Find address", class = "btn btn-primary"),
-        
         tags$p("Pick a town for details, or search a specific address.")
       )
     ),
@@ -119,8 +109,33 @@ ui <- fluidPage(
   )
 )
 
+# Basemap
 maptiler_api_key <- Sys.getenv("MAPTILER_API_KEY")
 style_key <- paste0("https://api.maptiler.com/maps/streets-v2/style.json?key=", maptiler_api_key)
+
+# ---- MapTiler geocoder (server-side via httr) ----
+maptiler_key <- Sys.getenv("MAPTILER_API_KEY", unset = "")
+
+geocode_maptiler <- function(query, key = maptiler_key) {
+  if (!nzchar(key)) return(NULL)
+  base <- "https://api.maptiler.com/geocoding/"
+  qenc <- utils::URLencode(query, reserved = TRUE)
+  url  <- paste0(
+    base, qenc, ".json",
+    "?key=", key,
+    "&country=US",
+    "&region=US-MA",
+    "&limit=1"
+  )
+  resp <- try(httr::RETRY("GET", url, times = 2, pause_min = 0.2), silent = TRUE)
+  if (inherits(resp, "try-error") || httr::http_error(resp)) return(NULL)
+  js <- httr::content(resp, as = "parsed", type = "application/json", encoding = "UTF-8")
+  if (is.null(js$features) || length(js$features) == 0) return(NULL)
+  feat <- js$features[[1]]
+  c(lon = feat$geometry$coordinates[[1]],
+    lat = feat$geometry$coordinates[[2]],
+    place = feat$place_name %||% query)
+}
 
 # ---- Server ----
 server <- function(input, output, session) {
@@ -179,7 +194,7 @@ server <- function(input, output, session) {
       fit_bounds(sf_sel, animate = TRUE)
   })
   
-  # Address lookup (street + MA town dropdown) using dplyr-mode geocode -> pin + zoom
+  # Address lookup (MapTiler only) -> pin + zoom
   observeEvent(input$addr_go, {
     street <- trimws(input$addr_street %||% "")
     town   <- trimws(input$addr_town   %||% "")
@@ -188,28 +203,21 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
     
-    # Build query in a tibble so geocode runs in dplyr mode
-    df <- tibble(addr = paste(street, town, "MA, USA", sep = ", "))
-    
-    res <- try(
-      df %>%
-        geocode(
-          address = addr,
-          method  = "osm",
-          limit   = 1,
-          custom_query = list(countrycodes = "us", viewbox = ma_viewbox, bounded = 1)
-        ),
-      silent = TRUE
-    )
-    
-    if (inherits(res, "try-error") || nrow(res) == 0 ||
-        any(is.na(res[, c("long","lat")]))) {
-      showNotification("Address not found.", type = "error")
+    query  <- paste(street, town, "MA, USA", sep = ", ")
+    coords <- geocode_maptiler(query)
+    if (is.null(coords) || any(is.na(coords[c("lon","lat")]))) {
+      showNotification("Address not found (MapTiler).", type = "error")
       return(invisible(NULL))
     }
     
-    pt <- st_as_sf(res, coords = c("long", "lat"), crs = 4326)
-    # Buffer (~2 km) to give context around the point
+    pt <- st_as_sf(
+      data.frame(long = as.numeric(coords["lon"]),
+                 lat  = as.numeric(coords["lat"]),
+                 label = as.character(coords["place"])),
+      coords = c("long", "lat"), crs = 4326
+    )
+    
+    # Buffer (~2 km) for context
     view_win <- pt |>
       st_transform(3857) |>
       st_buffer(2000) |>
@@ -224,8 +232,8 @@ server <- function(input, output, session) {
         circle_radius = 6,
         circle_stroke_color = "white",
         circle_stroke_width = 2,
-        tooltip = df$addr[1],
-        popup   = df$addr[1]
+        tooltip = pt$label[1],
+        popup   = pt$label[1]
       ) |>
       fit_bounds(view_win, animate = TRUE)
   })
