@@ -124,7 +124,7 @@ geocode_maptiler <- function(query, key = maptiler_key) {
     base, qenc, ".json",
     "?key=", key,
     "&country=US",
-    "&region=US-MA",
+    "&bbox=-73.508,41.237,-69.927,42.886",
     "&limit=1"
   )
   resp <- try(httr::RETRY("GET", url, times = 2, pause_min = 0.2), silent = TRUE)
