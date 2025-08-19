@@ -7,6 +7,7 @@ library(sf)
 library(tidyverse)
 library(scales)
 library(mapgl)
+library(tidygeocoder)
 
 # ---- Data ----
 towns_sf <- readRDS("data/towns_sf.rds") |>
@@ -18,7 +19,7 @@ commuter_shapes_sf <- readRDS("data/shapes_sf.rds") |>
   st_transform(4326) |>
   st_make_valid()
 
-# Build popup HTML and keep only atomic columns used for the map
+# Build popup HTML and keep only needed columns
 towns_map <- towns_sf |>
   mutate(
     popup_html = paste0(
@@ -40,8 +41,14 @@ towns_map <- towns_sf |>
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
-      .spaced > * { margin-bottom: 2rem; }
-      .spaced > *:last-child { margin-bottom: 0; }
+      .spaced > * { margin-bottom: 0.9rem; }
+      .or-divider {
+        display:flex; align-items:center; gap:8px; margin:0.6rem 0 0.3rem 0; color:#666;
+        font-weight:600; letter-spacing:0.02em;
+      }
+      .or-divider::before, .or-divider::after {
+        content:\"\"; flex:1; height:1px; background:#ddd;
+      }
       body, html { height: 100%; }
     "))
   ),
@@ -75,18 +82,30 @@ ui <- fluidPage(
     sidebarPanel(
       width = 2,
       style = "
-        display: flex; flex-direction: column; justify-content: flex-start;
-        height: auto; padding-top: 1rem; padding-bottom: 1rem; overflow-y: auto;
+        display:flex; flex-direction:column; justify-content:flex-start;
+        height:auto; padding-top:1rem; padding-bottom:1rem; overflow-y:auto;
       ",
       tags$div(
         class = "spaced",
+        
+        # 1) Town picker FIRST — starts unselected
         selectInput(
           "town_sel", "Pick a town:",
-          choices = sort(unique(towns_sf$town_name)),
-          selected = "Holliston"
+          choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
+          selected = ""
         ),
-        tags$p("Click on a town for detailed information."),
-        tags$p(strong("Note:"), "This is for initial exploration; visit the town and talk to local agents for detailed prefs.")
+        
+        div(class = "or-divider", "OR"),
+        
+        # 2) Address entry (street + MA town dropdown)
+        textInput("addr_street", "Street address:",
+                  placeholder = "e.g., 24 Beacon St"),
+        selectInput("addr_town", "Town:",
+                    choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
+                    selected = ""),
+        actionButton("addr_go", "Find address", class = "btn btn-primary"),
+        
+        tags$p("Pick a town for details, or search a specific address.")
       )
     ),
     mainPanel(
@@ -106,9 +125,7 @@ server <- function(input, output, session) {
   
   # Initial Map
   output$townMap <- renderMaplibre({
-    maplibre(
-      style = style_key
-    ) |>
+    maplibre(style = style_key) |>
       fit_bounds(towns_map) |>
       add_line_layer(
         id     = "commuter",
@@ -134,14 +151,13 @@ server <- function(input, output, session) {
       )
   })
   
-  # Selection -> highlight + zoom
+  # Town selection -> highlight + zoom
   observeEvent(input$town_sel, {
-    sf_sel <- towns_map |>
-      filter(town_name == input$town_sel)
+    if (is.null(input$town_sel) || input$town_sel == "") return(invisible(NULL))
     
+    sf_sel <- towns_map |> filter(town_name == input$town_sel)
     if (nrow(sf_sel) == 0) return(invisible(NULL))
     
-    # Make absolutely safe for the proxy
     sf_sel <- sf_sel |>
       st_zm(drop = TRUE, what = "ZM") |>
       suppressWarnings(st_cast("MULTIPOLYGON")) |>
@@ -158,9 +174,56 @@ server <- function(input, output, session) {
         fill_outline_color = "red"
       ) |>
       fit_bounds(sf_sel, animate = TRUE)
+  })
+  
+  # Address lookup (street + MA town dropdown) -> pin + zoom
+  observeEvent(input$addr_go, {
+    street <- trimws(input$addr_street %||% "")
+    town   <- trimws(input$addr_town   %||% "")
+    if (!nzchar(street) || !nzchar(town)) {
+      showNotification("Please enter a street and select a town.", type = "warning")
+      return(invisible(NULL))
+    }
     
+    # Keep search strictly in Massachusetts
+    query <- paste(street, town, "MA, USA", sep = ", ")
+    
+    res <- try(
+      tidygeocoder::geocode(address = query, method = "osm", limit = 1, mode = "single"),
+      silent = TRUE
+    )
+    ok <- !(inherits(res, "try-error") || nrow(res) == 0 ||
+              any(is.na(res[, c("long","lat")])))
+    if (!ok) {
+      showNotification("Address not found.", type = "error")
+      return(invisible(NULL))
+    }
+    
+    pt <- st_as_sf(res, coords = c("long", "lat"), crs = 4326)
+    # Buffer (~2 km) to give context around the point
+    view_win <- pt |>
+      st_transform(3857) |>
+      st_buffer(2000) |>
+      st_transform(4326)
+    
+    maplibre_proxy("townMap") |>
+      clear_layer("search_pt") |>
+      add_circle_layer(
+        id = "search_pt",
+        source = pt,
+        circle_color = "#2962FF",
+        circle_radius = 6,
+        circle_stroke_color = "white",
+        circle_stroke_width = 2,
+        tooltip = query,
+        popup   = query
+      ) |>
+      fit_bounds(view_win, animate = TRUE)
   })
 }
+
+# small helper
+`%||%` <- function(x, y) if (is.null(x)) y else x
 
 # ---- Run App ----
 shinyApp(ui, server)
