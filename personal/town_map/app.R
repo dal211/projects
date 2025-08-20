@@ -11,32 +11,10 @@ library(httr)
 library(rsconnect)
 
 # ---- Data ----
-towns_sf <- readRDS("data/towns_sf.rds") |>
-  st_transform(4326) |>
-  st_simplify(dTolerance = 100) |>
-  st_make_valid()
-
+towns_map <- readRDS("data/towns_map.rds")
 commuter_shapes_sf <- readRDS("data/shapes_sf.rds") |>
   st_transform(4326) |>
   st_make_valid()
-
-# Build popup HTML and keep only needed columns
-towns_map <- towns_sf |>
-  mutate(
-    popup_html = paste0(
-      "<strong>Town:</strong> ", town_name, "<br/>",
-      "<strong>School District:</strong> ", DIST_NAME, "<br/>",
-      "<strong>Home Price (3 bed):</strong> $", round(current_typ_home_value / 1000), "K<br/>",
-      "<strong>Property Tax Rate: </strong>", percent(prop_rate, accuracy = .01), "<br/>",
-      "<strong>High School Size:</strong> ", school_size_est, "<br/>",
-      "<strong>School Rating:</strong> ",
-      ifelse(is.na(normalized_school_score), "NA", paste0(normalized_school_score, "%")), "<br/>",
-      "<strong>To Croton (NY):</strong> ",
-      paste0(round(dist_mi), " miles (", round((dist_mi / 65) * 60), " min)")
-    )
-  ) |>
-  mutate(across(where(is.factor), as.character)) |>
-  select(town_name, fill_color, popup_html, geometry)
 
 # ---- UI ----
 ui <- fluidPage(
@@ -90,37 +68,44 @@ ui <- fluidPage(
   hr(),
   
   # Sidebar + Map
-  sidebarPanel(
-    width = 2,
-    style = "
-    display:flex; flex-direction:column; justify-content:flex-start;
-    height:auto; padding-top:1rem; padding-bottom:1rem; overflow-y:auto;
-  ",
-    tags$div(
-      class = "spaced",
-      
-      # --- Section 1: Town ---
-      tags$h4("Explore a town", style = "font-weight:600; font-size:16px; margin-top:0;"),
-      selectInput(
-        "town_sel", NULL,
-        choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
-        selected = ""
-      ),
-      
-      div(class = "or-divider", "OR"),
-      
-      # --- Section 2: Address ---
-      tags$h4("Explore an address", style = "font-weight:600; font-size:16px; margin-top:0;"),
-      textInput("addr_street", "Street address:", placeholder = "e.g., 24 Beacon St"),
-      selectInput("addr_town", "Town:",
-                  choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
-                  selected = ""),
-      actionButton("addr_go", "Find address", class = "btn btn-primary"),
-      actionButton("reset_view", "Reset map", class = "btn btn-outline-secondary"),
-      tags$p("Click on the map to see info about the town.")
+  sidebarLayout(
+    sidebarPanel(
+      width = 2,
+      style = "
+      display:flex; flex-direction:column; justify-content:flex-start;
+      height:auto; padding-top:1rem; padding-bottom:1rem; overflow-y:auto;
+    ",
+      tags$div(
+        class = "spaced",
+        
+        # --- Section 1: Town ---
+        tags$h4("Explore a town", style = "font-weight:600; font-size:16px; margin:0 0 .25rem 0;"),
+        selectInput(
+          "town_sel", NULL,  # label hidden; subtitle above serves as the label
+          choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
+          selected = ""
+        ),
+        
+        div(class = "or-divider", "OR"),
+        
+        # --- Section 2: Address ---
+        tags$h4("Explore an address", style = "font-weight:600; font-size:16px; margin:0 0 .25rem 0;"),
+        textInput("addr_street", "Street address:", placeholder = "e.g., 24 Beacon St"),
+        selectInput("addr_town", "Town:",
+                    choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
+                    selected = ""),
+        actionButton("addr_go", "Find address", class = "btn btn-primary"),
+        actionButton("reset_view", "Reset map", class = "btn btn-outline-secondary"),
+        tags$p("Click on the map to see info about the town.")
+      )
+    ),
+    mainPanel(
+      width = 10,
+      style = "padding:0; margin:0; height:100vh;",
+      maplibreOutput("townMap", width = "100%", height = "100%")
     )
-  )
-
+  ))
+  
 
 # Basemap
 maptiler_api_key <- Sys.getenv("MAPTILER_API_KEY")
@@ -274,4 +259,3 @@ server <- function(input, output, session) {
 # ---- Run App ----
 shinyApp(ui, server)
 
-# rsconnect::deployApp(appName = "findmytown")

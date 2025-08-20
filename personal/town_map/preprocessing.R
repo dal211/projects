@@ -157,4 +157,27 @@ tbl_dist <- osrmTable(
 towns_sf$dist_m <- tbl_dist$distances[, 1]
 towns_sf$dist_mi <- towns_sf$dist_m / 1609.34 # meters to miles
 
-saveRDS(towns_sf, "data/towns_sf.rds")
+towns_sf <- readRDS("data/towns_sf.rds") |>
+  st_transform(4326) |>
+  st_simplify(dTolerance = 100) |>
+  st_make_valid()
+
+# Build popup HTML and keep only needed columns
+towns_map <- towns_sf |>
+  mutate(
+    popup_html = paste0(
+      "<strong>Town:</strong> ", town_name, "<br/>",
+      "<strong>School District:</strong> ", DIST_NAME, "<br/>",
+      "<strong>Home Price (3 bed):</strong> $", round(current_typ_home_value / 1000), "K<br/>",
+      "<strong>Property Tax Rate: </strong>", percent(prop_rate, accuracy = .01), "<br/>",
+      "<strong>High School Size:</strong> ", school_size_est, "<br/>",
+      "<strong>School Rating:</strong> ",
+      ifelse(is.na(normalized_school_score), "NA", paste0(normalized_school_score, "%")), "<br/>",
+      "<strong>To Croton (NY):</strong> ",
+      paste0(round(dist_mi), " miles (", round((dist_mi / 65) * 60), " min)")
+    )
+  ) |>
+  mutate(across(where(is.factor), as.character)) |>
+  select(town_name, fill_color, popup_html, geometry)
+
+saveRDS(towns_map, "data/towns_map.rds")
