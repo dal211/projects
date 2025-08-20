@@ -19,7 +19,6 @@ library(readxl)
 library(openxlsx)
 library(fuzzyjoin)
 library(leaflet.extras)
-library(leaflet.mapboxgl)
 library(osrm)
 
 # usethis::edit_r_environ()

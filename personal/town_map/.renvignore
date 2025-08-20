@@ -1,0 +1,5 @@
+^data/google_maps_data\.R$
+^preprocessing\.R$
+^town_map_files/
+^docs/
+^data/old/

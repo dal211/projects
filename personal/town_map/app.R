@@ -7,7 +7,8 @@ library(sf)
 library(tidyverse)
 library(scales)
 library(mapgl)
-library(httr)         # <-- use httr instead of httr2
+library(httr)
+library(rsconnect)
 
 # ---- Data ----
 towns_sf <- readRDS("data/towns_sf.rds") |>
@@ -53,23 +54,34 @@ ui <- fluidPage(
     "))
   ),
   
-  # Title + links
   fluidRow(
     column(
       width = 8,
       h2("Where Should I Live?"),
       tags$div(
-        style = "margin-top: -10px;",
+        style = "
+        display: flex;
+        gap: 24px;          /* equal space between links */
+        margin-top: -10px;
+        align-items: center;
+        flex-wrap: wrap;    /* wrap to new line on small screens */
+      ",
+        # tags$a(
+        #   href   = "https://github.com/dal211/projects/tree/main/personal/town_map",
+        #   target = "_blank",
+        #   style  = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
+        #   icon("github"), "GitHub"
+        # ),
         tags$a(
-          href   = "https://github.com/dal211/projects/tree/main/personal/town_map",
+          href   = "https://www.redfin.com/",
           target = "_blank",
-          style  = "font-size:16px; text-decoration: none; margin-right: 20px;",
-          icon("github"), "GitHub"
+          style  = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
+          icon("map-marker-alt"), "Redfin"
         ),
         tags$a(
           href   = "https://www.mortgagecalculator.org/",
           target = "_blank",
-          style  = "font-size:16px; text-decoration: none;",
+          style  = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
           icon("house"), "Mortgage Calculator"
         )
       )
@@ -99,7 +111,7 @@ ui <- fluidPage(
                     selected = ""),
         actionButton("addr_go", "Find address", class = "btn btn-primary"),
         actionButton("reset_view", "Reset map", class = "btn btn-outline-secondary"),
-        tags$p("Pick a town for details, or search a specific address.")
+        tags$p("Click on the map to see info about the town.")
       )
     ),
     mainPanel(
@@ -141,6 +153,7 @@ geocode_maptiler <- function(query, key = maptiler_key) {
 # ---- Server ----
 server <- function(input, output, session) {
   message("🚀 app starting — reaching server()")
+  message("MAPTILER_API_KEY loaded? ", substr(Sys.getenv("MAPTILER_API_KEY"), 1, 6))
   
   # Initial Map
   output$townMap <- renderMaplibre({
@@ -165,8 +178,8 @@ server <- function(input, output, session) {
       ) |>
       add_categorical_legend(
         legend_title = "School Quality",
-        values = c("50–60th percentile", ">70th percentile"),
-        colors = c("#AB47BC", "#ffc107"),
+        values = c(">70th percentile (Tier 1)", "50–60th percentile (Tier 2)"),
+        colors = c("#ffc107", "#AB47BC"),
         position = "top-right"
       )
   })
@@ -260,3 +273,5 @@ server <- function(input, output, session) {
 
 # ---- Run App ----
 shinyApp(ui, server)
+
+# rsconnect::deployApp(appName = "findmytown")
