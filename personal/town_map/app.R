@@ -98,6 +98,7 @@ ui <- fluidPage(
                     choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
                     selected = ""),
         actionButton("addr_go", "Find address", class = "btn btn-primary"),
+        actionButton("reset_view", "Reset map", class = "btn btn-outline-secondary"),
         tags$p("Pick a town for details, or search a specific address.")
       )
     ),
@@ -238,6 +239,20 @@ server <- function(input, output, session) {
       ) |>
       fit_bounds(view_win, animate = TRUE)
   })
+  
+  observeEvent(input$reset_view, {
+    # Clear highlight & search point, then zoom back to full bounds
+    maplibre_proxy("townMap") |>
+      clear_layer("highlight") |>
+      clear_layer("search_pt") |>
+      fit_bounds(towns_map, animate = TRUE)
+    
+    # Reset inputs (comment out if you prefer to keep selections)
+    updateSelectInput(session, "town_sel",   selected = "")
+    updateTextInput( session, "addr_street", value    = "")
+    updateSelectInput(session, "addr_town",  selected = "")
+  })
+  
 }
 
 # small helper
