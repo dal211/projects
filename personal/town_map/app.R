@@ -90,37 +90,37 @@ ui <- fluidPage(
   hr(),
   
   # Sidebar + Map
-  sidebarLayout(
-    sidebarPanel(
-      width = 2,
-      style = "
-        display:flex; flex-direction:column; justify-content:flex-start;
-        height:auto; padding-top:1rem; padding-bottom:1rem; overflow-y:auto;
-      ",
-      tags$div(
-        class = "spaced",
-        selectInput(
-          "town_sel", "Pick a town:",
-          choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
-          selected = ""
-        ),
-        div(class = "or-divider", "OR"),
-        textInput("addr_street", "Street address:", placeholder = "e.g., 24 Beacon St"),
-        selectInput("addr_town", "Town:",
-                    choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
-                    selected = ""),
-        actionButton("addr_go", "Find address", class = "btn btn-primary"),
-        actionButton("reset_view", "Reset map", class = "btn btn-outline-secondary"),
-        tags$p("Click on the map to see info about the town.")
-      )
-    ),
-    mainPanel(
-      width = 10,
-      style = "padding:0; margin:0; height:100vh;",
-      maplibreOutput("townMap", width = "100%", height = "100%")
+  sidebarPanel(
+    width = 2,
+    style = "
+    display:flex; flex-direction:column; justify-content:flex-start;
+    height:auto; padding-top:1rem; padding-bottom:1rem; overflow-y:auto;
+  ",
+    tags$div(
+      class = "spaced",
+      
+      # --- Section 1: Town ---
+      tags$h4("Explore a town", style = "font-weight:600; font-size:16px; margin-top:0;"),
+      selectInput(
+        "town_sel", NULL,
+        choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
+        selected = ""
+      ),
+      
+      div(class = "or-divider", "OR"),
+      
+      # --- Section 2: Address ---
+      tags$h4("Explore an address", style = "font-weight:600; font-size:16px; margin-top:0;"),
+      textInput("addr_street", "Street address:", placeholder = "e.g., 24 Beacon St"),
+      selectInput("addr_town", "Town:",
+                  choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
+                  selected = ""),
+      actionButton("addr_go", "Find address", class = "btn btn-primary"),
+      actionButton("reset_view", "Reset map", class = "btn btn-outline-secondary"),
+      tags$p("Click on the map to see info about the town.")
     )
   )
-)
+
 
 # Basemap
 maptiler_api_key <- Sys.getenv("MAPTILER_API_KEY")
