@@ -61,7 +61,7 @@ ui <- fluidPage(
       tags$div(
         style = "margin-top: -10px;",
         tags$a(
-          href   = "https://github.com/dal211/projects/tree/main/personal/town_map",
+          href   = "https://www.mortgagecalculator.org/",
           target = "_blank",
           style  = "font-size:16px; text-decoration: none; margin-right: 20px;",
           icon("github"), "GitHub"
