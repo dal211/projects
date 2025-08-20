@@ -144,6 +144,7 @@ server <- function(input, output, session) {
   # Initial Map
   output$townMap <- renderMaplibre({
     maplibre(style = style_key) |>
+      add_navigation_control(position = "top-left") |>  # ← Zoom + compass buttons
       fit_bounds(towns_map) |>
       add_line_layer(
         id     = "commuter",
