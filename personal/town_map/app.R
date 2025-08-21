@@ -12,6 +12,7 @@ library(rsconnect)
 
 # ---- Data ----
 towns_map <- readRDS("data/towns_map.rds")
+towns_sf <- readRDS("data/towns_sf.rds")
 commuter_shapes_sf <- readRDS("data/shapes_sf.rds") |>
   st_transform(4326) |>
   st_make_valid()
@@ -164,7 +165,7 @@ server <- function(input, output, session) {
       add_categorical_legend(
         legend_title = "School Quality",
         values = c(">70th percentile (Tier 1)", "50–60th percentile (Tier 2)"),
-        colors = c("#ffc107", "#AB47BC"),
+        colors = c("#009688", "#AB47BC"),
         position = "top-right"
       )
   })
