@@ -162,15 +162,24 @@ towns_sf <- readRDS("data/towns_sf.rds") |>
   st_simplify(dTolerance = 100) |>
   st_make_valid()
 
+town_area_mappings <- read_xlsx("town_area_mappings.xlsx") %>%
+  mutate(category = str_replace(category, ".\\/.Exurban$", ""))
+
+towns_sf <- towns_sf %>% 
+  left_join(
+    town_area_mappings,
+    by = c("town_name" = "town")
+  )
+
 # Build popup HTML and keep only needed columns
 towns_map <- towns_sf |>
   mutate(
     popup_html = paste0(
       "<strong>Town:</strong> ", town_name, "<br/>",
       "<strong>School District:</strong> ", DIST_NAME, "<br/>",
-      "<strong>Home Price (3 bed):</strong> $", round(current_typ_home_value / 1000), "K<br/>",
+      "<strong>Median Home Price (3 bed):</strong> $", round(current_typ_home_value / 1000), "K<br/>",
       "<strong>Property Tax Rate: </strong>", percent(prop_rate, accuracy = .01), "<br/>",
-      "<strong>High School Size:</strong> ", school_size_est, "<br/>",
+      "<strong>High School Size Est.:</strong> ", school_size_est, "<br/>",
       "<strong>School Rating:</strong> ",
       ifelse(is.na(normalized_school_score), "NA", paste0(normalized_school_score, "%")), "<br/>",
       "<strong>To Croton (NY):</strong> ",

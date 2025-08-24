@@ -111,9 +111,17 @@ ui <- fluidPage(
       style = "padding:0; margin:0; height:100vh;",
       maplibreOutput("townMap", width = "100%", height = "100%")
     )
-  ))
+  ),
+  absolutePanel(
+    class = "map-tip",
+    top = 140, right = 16,  # adjust 140px to sit just under your legend
+    style = "background:rgba(255,255,255,.95);padding:6px 10px;border-radius:6px;
+           font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.15);z-index:1000;",
+    HTML('<b>Tip:</b> Hold <kbd>Ctrl</kbd> + drag to tilt & rotate.')
+  )
   
-
+)
+  
 # Basemap
 maptiler_api_key <- Sys.getenv("MAPTILER_API_KEY")
 style_key <- paste0("https://api.maptiler.com/maps/streets-v2/style.json?key=", maptiler_api_key)
