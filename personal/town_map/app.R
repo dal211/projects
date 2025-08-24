@@ -171,7 +171,7 @@ server <- function(input, output, session) {
       add_categorical_legend(
         legend_title = "School Quality",
         values = c(">70th percentile (Tier 1)", "50–60th percentile (Tier 2)"),
-        colors = c("#009688", "#AB47BC"),
+        colors = c("rgba(0,150,136,0.2)", "rgba(171,71,188,0.2)"),
         position = "top-right"
       )
   })
