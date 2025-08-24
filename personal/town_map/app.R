@@ -55,13 +55,19 @@ ui <- fluidPage(
           href   = "https://www.redfin.com/",
           target = "_blank",
           style  = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
-          icon("map-marker-alt"), "Redfin"
+          icon("house"), "Redfin"
+        ),
+        tags$a(
+          href   = "https://www.niche.com/places-to-live/search/best-places-to-live/",
+          target = "_blank",
+          style  = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
+          icon("map-marker-alt"), "Niche"
         ),
         tags$a(
           href   = "https://www.mortgagecalculator.org/",
           target = "_blank",
           style  = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
-          icon("house"), "Mortgage Calculator"
+          icon("calculator"), "Mortgage Calculator"
         )
       )
     )
