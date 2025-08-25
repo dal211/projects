@@ -30,7 +30,17 @@ ui <- fluidPage(
         content:\"\"; flex:1; height:1px; background:#ddd;
       }
       body, html { height: 100%; }
-    "))
+    ")),
+    tags$style(HTML("
+  .tip-btn {
+    width: 34px; height: 34px; padding: 0;
+    border-radius: 9999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+  }
+  .tip-btn .fa { margin: 0; } /* keep the FA icon centered */
+"))
+    
   ),
   
   fluidRow(
@@ -113,12 +123,17 @@ ui <- fluidPage(
     )
   ),
   absolutePanel(
-    class = "map-tip",
-    bottom = 5, left = 265,  # adjust 140px to sit just under your legend
-    style = "background:rgba(255,255,255,.95);padding:6px 10px;border-radius:6px;
-           font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.15);z-index:1000;",
-    HTML('<b>Tip:</b> Hold <kbd>Ctrl</kbd> + drag to tilt & rotate.')
+    top = 220, left = 270, fixed = TRUE,     # move it around with bottom/left
+    style = "z-index:1000;",
+    tags$button(
+      id    = "map_tip_btn",
+      type  = "button",
+      class = "btn btn-light tip-btn",
+      title = "Tip: Hold Ctrl + drag to tilt & rotate.",  # <-- native hover tooltip
+      icon("info-circle")
+    )
   )
+  
   
 )
   
