@@ -160,16 +160,16 @@ tbl_dist <- osrmTable(
 towns_sf$dist_m <- tbl_dist$distances[, 1]
 towns_sf$dist_mi <- towns_sf$dist_m / 1609.34 # meters to miles
 
-towns_sf <- readRDS("data/towns_sf.rds") |>
+towns_sf <- towns_sf |>
   st_transform(4326) |>
   st_simplify(dTolerance = 100) |>
   st_make_valid()
 
-towns_sf$de <- towns_sf %>% 
+towns_sf <- towns_sf %>% 
   left_join(
     pop_density,
     by = c("town_name" = "town_clean")
-  )  
+  )
 
 # Build popup HTML and keep only needed columns
 towns_map <- towns_sf |>

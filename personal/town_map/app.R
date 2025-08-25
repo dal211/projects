@@ -114,7 +114,7 @@ ui <- fluidPage(
   ),
   absolutePanel(
     class = "map-tip",
-    top = 140, right = 16,  # adjust 140px to sit just under your legend
+    bottom = 5, left = 265,  # adjust 140px to sit just under your legend
     style = "background:rgba(255,255,255,.95);padding:6px 10px;border-radius:6px;
            font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.15);z-index:1000;",
     HTML('<b>Tip:</b> Hold <kbd>Ctrl</kbd> + drag to tilt & rotate.')
