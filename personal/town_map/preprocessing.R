@@ -29,6 +29,9 @@ library(osrm)
 
 # ---- Data Preparation ----n# Ensure caching of tigris shapes\options(tigris_use_cache = TRUE)
 
+pop_density <- readRDS("data/pop_density.rds")
+pop_density <- as_tibble(pop_density)
+
 # MCAS data
 mcas <- read_csv("data/MCAS_Achievement_Results_20250415.csv") %>%
   filter(
@@ -162,20 +165,18 @@ towns_sf <- readRDS("data/towns_sf.rds") |>
   st_simplify(dTolerance = 100) |>
   st_make_valid()
 
-town_area_mappings <- read_xlsx("town_area_mappings.xlsx") %>%
-  mutate(category = str_replace(category, ".\\/.Exurban$", ""))
-
-towns_sf <- towns_sf %>% 
+towns_sf$de <- towns_sf %>% 
   left_join(
-    town_area_mappings,
-    by = c("town_name" = "town")
-  )
+    pop_density,
+    by = c("town_name" = "town_clean")
+  )  
 
 # Build popup HTML and keep only needed columns
 towns_map <- towns_sf |>
   mutate(
     popup_html = paste0(
       "<strong>Town:</strong> ", town_name, "<br/>",
+      "<strong>Area Feel:</strong> ",dens_cat , "<br/>",      
       "<strong>School District:</strong> ", DIST_NAME, "<br/>",
       "<strong>Median Home Price (3 bed):</strong> $", round(current_typ_home_value / 1000), "K<br/>",
       "<strong>Property Tax Rate: </strong>", percent(prop_rate, accuracy = .01), "<br/>",
@@ -191,3 +192,5 @@ towns_map <- towns_sf |>
 
 saveRDS(towns_map, "data/towns_map.rds")
 saveRDS(towns_sf, "data/towns_sf.rds")
+
+
