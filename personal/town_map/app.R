@@ -39,10 +39,45 @@ ui <- fluidPage(
     box-shadow: 0 2px 6px rgba(0,0,0,.15);
   }
   .tip-btn .fa { margin: 0; } /* keep the FA icon centered */
+")),
+    # --- add this style (optional spacing & button look to match MapLibre) ---
+    tags$style(HTML("
+  .custom-tip-ctrl { margin-top: 4px; }              /* space under nav control */
+  .custom-tip-ctrl button {
+    width: 28px; height: 28px; background:#fff; border:0; cursor:pointer;
+  }
+  .custom-tip-ctrl button:hover { background:#f0f0f0; }
+")),
+
+    # --- add this script (creates an 'info' control under the nav controls) ---
+    tags$script(HTML("
+  Shiny.addCustomMessageHandler('attach-tip', function(id){
+    var root = document.getElementById(id);
+    if (!root) return;
+
+    // MapLibre's top-left control corner (same one that holds zoom/compass)
+    var corner = root.querySelector('.maplibregl-ctrl-top-left');
+    if (!corner) return;
+
+    // Avoid duplicates if hot-reloading
+    if (corner.querySelector('.custom-tip-ctrl')) return;
+
+    // Create a control group with one button
+    var group = document.createElement('div');
+    group.className = 'maplibregl-ctrl maplibregl-ctrl-group custom-tip-ctrl';
+
+    var btn = document.createElement('button');
+    btn.type  = 'button';
+    btn.title = 'Tip: Hold Ctrl + drag to tilt & rotate.';   // native hover tooltip
+    // If Font Awesome is present, uncomment the next line and comment the 'i'
+    btn.innerHTML = '<i class=\"fa fa-info-circle\"></i>';
+    // btn.innerHTML = 'i';
+
+    group.appendChild(btn);
+    corner.appendChild(group);
+  });
 "))
-    
   ),
-  
   fluidRow(
     column(
       width = 8,
@@ -62,28 +97,28 @@ ui <- fluidPage(
         #   icon("github"), "GitHub"
         # ),
         tags$a(
-          href   = "https://www.redfin.com/",
+          href = "https://www.redfin.com/",
           target = "_blank",
-          style  = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
+          style = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
           icon("house"), "Redfin"
         ),
         tags$a(
-          href   = "https://www.niche.com/places-to-live/search/best-places-to-live/",
+          href = "https://www.niche.com/places-to-live/search/best-places-to-live/",
           target = "_blank",
-          style  = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
+          style = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
           icon("map-marker-alt"), "Niche"
         ),
         tags$a(
-          href   = "https://www.mortgagecalculator.org/",
+          href = "https://www.mortgagecalculator.org/",
           target = "_blank",
-          style  = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
+          style = "font-size:16px; text-decoration: none; display:flex; align-items:center; gap:6px;",
           icon("calculator"), "Mortgage Calculator"
         )
       )
     )
   ),
   hr(),
-  
+
   # Sidebar + Map
   sidebarLayout(
     sidebarPanel(
@@ -94,23 +129,23 @@ ui <- fluidPage(
     ",
       tags$div(
         class = "spaced",
-        
+
         # --- Section 1: Town ---
         tags$h4("Explore a town", style = "font-weight:600; font-size:16px; margin:0 0 .25rem 0;"),
         selectInput(
-          "town_sel", NULL,  # label hidden; subtitle above serves as the label
-          choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
+          "town_sel", NULL, # label hidden; subtitle above serves as the label
+          choices = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
           selected = ""
         ),
-        
         div(class = "or-divider", "OR"),
-        
+
         # --- Section 2: Address ---
         tags$h4("Explore an address", style = "font-weight:600; font-size:16px; margin:0 0 .25rem 0;"),
         textInput("addr_street", "Street address:", placeholder = "e.g., 24 Beacon St"),
         selectInput("addr_town", "Town:",
-                    choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
-                    selected = ""),
+          choices  = c("— Select a town —" = "", sort(unique(towns_sf$town_name))),
+          selected = ""
+        ),
         actionButton("addr_go", "Find address", class = "btn btn-primary"),
         actionButton("reset_view", "Reset map", class = "btn btn-outline-secondary"),
         tags$p("Click on the map to see info about the town.")
@@ -121,22 +156,9 @@ ui <- fluidPage(
       style = "padding:0; margin:0; height:100vh;",
       maplibreOutput("townMap", width = "100%", height = "100%")
     )
-  ),
-  absolutePanel(
-    top = 220, left = 270, fixed = TRUE,     # move it around with bottom/left
-    style = "z-index:1000;",
-    tags$button(
-      id    = "map_tip_btn",
-      type  = "button",
-      class = "btn btn-light tip-btn",
-      title = "Tip: Hold Ctrl + drag to tilt & rotate.",  # <-- native hover tooltip
-      icon("info-circle")
-    )
   )
-  
-  
 )
-  
+
 # Basemap
 maptiler_api_key <- Sys.getenv("MAPTILER_API_KEY")
 style_key <- paste0("https://api.maptiler.com/maps/streets-v2/style.json?key=", maptiler_api_key)
@@ -145,10 +167,12 @@ style_key <- paste0("https://api.maptiler.com/maps/streets-v2/style.json?key=", 
 maptiler_key <- Sys.getenv("MAPTILER_API_KEY", unset = "")
 
 geocode_maptiler <- function(query, key = maptiler_key) {
-  if (!nzchar(key)) return(NULL)
+  if (!nzchar(key)) {
+    return(NULL)
+  }
   base <- "https://api.maptiler.com/geocoding/"
   qenc <- utils::URLencode(query, reserved = TRUE)
-  url  <- paste0(
+  url <- paste0(
     base, qenc, ".json",
     "?key=", key,
     "&country=US",
@@ -156,40 +180,46 @@ geocode_maptiler <- function(query, key = maptiler_key) {
     "&limit=1"
   )
   resp <- try(httr::RETRY("GET", url, times = 2, pause_min = 0.2), silent = TRUE)
-  if (inherits(resp, "try-error") || httr::http_error(resp)) return(NULL)
+  if (inherits(resp, "try-error") || httr::http_error(resp)) {
+    return(NULL)
+  }
   js <- httr::content(resp, as = "parsed", type = "application/json", encoding = "UTF-8")
-  if (is.null(js$features) || length(js$features) == 0) return(NULL)
+  if (is.null(js$features) || length(js$features) == 0) {
+    return(NULL)
+  }
   feat <- js$features[[1]]
-  c(lon = feat$geometry$coordinates[[1]],
+  c(
+    lon = feat$geometry$coordinates[[1]],
     lat = feat$geometry$coordinates[[2]],
-    place = feat$place_name %||% query)
+    place = feat$place_name %||% query
+  )
 }
 
 # ---- Server ----
 server <- function(input, output, session) {
   message("🚀 app starting — reaching server()")
   message("MAPTILER_API_KEY loaded? ", substr(Sys.getenv("MAPTILER_API_KEY"), 1, 6))
-  
+
   # Initial Map
   output$townMap <- renderMaplibre({
     maplibre(style = style_key) |>
-      add_navigation_control(position = "top-left") |>  # ← Zoom + compass buttons
+      add_navigation_control(position = "top-left") |> # ← Zoom + compass buttons
       fit_bounds(towns_map) |>
       add_line_layer(
-        id     = "commuter",
+        id = "commuter",
         source = commuter_shapes_sf,
         line_color = "purple",
         line_width = 2,
         tooltip = "shape_id"
       ) |>
       add_fill_layer(
-        id     = "towns",
+        id = "towns",
         source = towns_map,
         fill_color = get_column("fill_color"),
         fill_opacity = 0.15,
         fill_outline_color = "grey",
         tooltip = "town_name",
-        popup   = "popup_html"
+        popup = "popup_html"
       ) |>
       add_categorical_legend(
         legend_title = "School Quality",
@@ -198,24 +228,28 @@ server <- function(input, output, session) {
         position = "top-right"
       )
   })
-  
+
   # Town selection -> highlight + zoom
   observeEvent(input$town_sel, {
-    if (is.null(input$town_sel) || input$town_sel == "") return(invisible(NULL))
-    
+    if (is.null(input$town_sel) || input$town_sel == "") {
+      return(invisible(NULL))
+    }
+
     sf_sel <- towns_map |> filter(town_name == input$town_sel)
-    if (nrow(sf_sel) == 0) return(invisible(NULL))
-    
+    if (nrow(sf_sel) == 0) {
+      return(invisible(NULL))
+    }
+
     sf_sel <- sf_sel |>
       st_zm(drop = TRUE, what = "ZM") |>
       suppressWarnings(st_cast("MULTIPOLYGON")) |>
       st_make_valid() |>
       select(town_name, popup_html, geometry)
-    
+
     maplibre_proxy("townMap") |>
       clear_layer("highlight") |>
       add_fill_layer(
-        id     = "highlight",
+        id = "highlight",
         source = sf_sel,
         fill_color = "transparent",
         fill_opacity = 0,
@@ -223,36 +257,38 @@ server <- function(input, output, session) {
       ) |>
       fit_bounds(sf_sel, animate = TRUE)
   })
-  
+
   # Address lookup (MapTiler only) -> pin + zoom
   observeEvent(input$addr_go, {
     street <- trimws(input$addr_street %||% "")
-    town   <- trimws(input$addr_town   %||% "")
+    town <- trimws(input$addr_town %||% "")
     if (!nzchar(street) || !nzchar(town)) {
       showNotification("Please enter a street and select a town.", type = "warning")
       return(invisible(NULL))
     }
-    
-    query  <- paste(street, town, "MA, USA", sep = ", ")
+
+    query <- paste(street, town, "MA, USA", sep = ", ")
     coords <- geocode_maptiler(query)
-    if (is.null(coords) || any(is.na(coords[c("lon","lat")]))) {
+    if (is.null(coords) || any(is.na(coords[c("lon", "lat")]))) {
       showNotification("Address not found (MapTiler).", type = "error")
       return(invisible(NULL))
     }
-    
+
     pt <- st_as_sf(
-      data.frame(long = as.numeric(coords["lon"]),
-                 lat  = as.numeric(coords["lat"]),
-                 label = as.character(coords["place"])),
+      data.frame(
+        long = as.numeric(coords["lon"]),
+        lat = as.numeric(coords["lat"]),
+        label = as.character(coords["place"])
+      ),
       coords = c("long", "lat"), crs = 4326
     )
-    
+
     # Buffer (~2 km) for context
     view_win <- pt |>
       st_transform(3857) |>
       st_buffer(2000) |>
       st_transform(4326)
-    
+
     maplibre_proxy("townMap") |>
       clear_layer("search_pt") |>
       add_circle_layer(
@@ -263,24 +299,27 @@ server <- function(input, output, session) {
         circle_stroke_color = "white",
         circle_stroke_width = 2,
         tooltip = pt$label[1],
-        popup   = pt$label[1]
+        popup = pt$label[1]
       ) |>
       fit_bounds(view_win, animate = TRUE)
   })
-  
+
   observeEvent(input$reset_view, {
     # Clear highlight & search point, then zoom back to full bounds
     maplibre_proxy("townMap") |>
       clear_layer("highlight") |>
       clear_layer("search_pt") |>
       fit_bounds(towns_map, animate = TRUE)
-    
+
     # Reset inputs (comment out if you prefer to keep selections)
-    updateSelectInput(session, "town_sel",   selected = "")
-    updateTextInput( session, "addr_street", value    = "")
-    updateSelectInput(session, "addr_town",  selected = "")
+    updateSelectInput(session, "town_sel", selected = "")
+    updateTextInput(session, "addr_street", value = "")
+    updateSelectInput(session, "addr_town", selected = "")
   })
-  
+
+  session$onFlushed(function() {
+    session$sendCustomMessage("attach-tip", "townMap") # 'townMap' = your map output id
+  }, once = TRUE)
 }
 
 # small helper
@@ -288,4 +327,3 @@ server <- function(input, output, session) {
 
 # ---- Run App ----
 shinyApp(ui, server)
-

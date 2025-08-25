@@ -169,14 +169,15 @@ towns_sf <- towns_sf %>%
   left_join(
     pop_density,
     by = c("town_name" = "town_clean")
-  )
+  ) %>% 
+  mutate(density = round(density))
 
 # Build popup HTML and keep only needed columns
 towns_map <- towns_sf |>
   mutate(
     popup_html = paste0(
       "<strong>Town:</strong> ", town_name, "<br/>",
-      "<strong>Area Feel:</strong> ",dens_cat , "<br/>",      
+      "<strong>Area Feel:</strong> ",dens_cat, " (", density, " per sq mi)", "<br/>",      
       "<strong>School District:</strong> ", DIST_NAME, "<br/>",
       "<strong>Median Home Price (3 bed):</strong> $", round(current_typ_home_value / 1000), "K<br/>",
       "<strong>Property Tax Rate: </strong>", percent(prop_rate, accuracy = .01), "<br/>",
