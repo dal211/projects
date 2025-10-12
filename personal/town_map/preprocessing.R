@@ -20,6 +20,7 @@ library(openxlsx)
 library(fuzzyjoin)
 library(leaflet.extras)
 library(osrm)
+library(glue)
 
 # usethis::edit_r_environ()
 # mapbox_public_token <- Sys.getenv("MAPBOX_PUBLIC_TOKEN")
@@ -47,14 +48,11 @@ mcas_agg <- mcas %>%
   group_by(DIST_CODE, DIST_NAME) %>%
   summarize(
     stu_cnt         = median(STU_CNT),
-    exceed_cnt      = round(weighted.mean(E_CNT, w = STU_CNT), 0),
     avg_score       = round(weighted.mean(AVG_SCALED_SCORE, w = STU_CNT), 0)
   ) %>%
   ungroup() %>%
   mutate(
-    exceed_perct            = round(exceed_cnt / stu_cnt, 3),
-    school_size_est         = stu_cnt * 4
-    # exceed_mcas_percentile  = percent_rank(exceed_perct)
+    school_size_est = stu_cnt * 4
   )
 
 ap_scores <- read_csv("data/Advanced_Placement__AP__Performance_20250525.csv") %>%
@@ -130,7 +128,7 @@ towns_sf <- towns_sf %>%
   ) %>%
   mutate(
     dist_to_croton_mi = dist_to_croton_mi + 50,
-    mcas_rank = percent_rank(exceed_perct),
+    mcas_rank = percent_rank(avg_score),
     ap_rank = percent_rank(PCT_3_5),
     normalized_school_score = round((.5 * mcas_rank + .5 * ap_rank) * 100, 1),
     school_color = if_else(normalized_school_score >= 70, 1, 0),
@@ -173,22 +171,26 @@ towns_sf <- towns_sf %>%
   mutate(density = round(density))
 
 # Build popup HTML and keep only needed columns
-towns_map <- towns_sf |>
+library(dplyr)
+library(glue)
+library(scales)
+
+towns_map <- towns_sf %>%
+  mutate(across(where(is.factor), as.character)) %>%
   mutate(
-    popup_html = paste0(
-      "<strong>Town:</strong> ", town_name, "<br/>",
-      "<strong>Area Feel:</strong> ",dens_cat, " (", density, " per sq mi)", "<br/>",      
-      "<strong>School District:</strong> ", DIST_NAME, "<br/>",
-      "<strong>Median Home Price (3 bed):</strong> $", round(current_typ_home_value / 1000), "K<br/>",
-      "<strong>Property Tax Rate: </strong>", percent(prop_rate, accuracy = .01), "<br/>",
-      "<strong>High School Size Est.:</strong> ", school_size_est, "<br/>",
-      "<strong>School Rating:</strong> ",
-      ifelse(is.na(normalized_school_score), "NA", paste0(normalized_school_score, "%")), "<br/>",
-      "<strong>To Croton (NY):</strong> ",
-      paste0(round(dist_mi), " miles (", round((dist_mi / 65) * 60), " min)")
-    )
-  ) |>
-  mutate(across(where(is.factor), as.character)) |>
+    popup_html = glue::glue(
+      "<strong>Town:</strong> {town_name}<br/>
+       <strong>Area Feel:</strong> {dens_cat} ({comma(density)} per sq mi)<br/>
+       <strong>School District:</strong> {DIST_NAME}<br/>
+       <strong>Median Home Price (3 bed):</strong> {dollar(current_typ_home_value, accuracy = 1)}<br/>
+       <strong>Property Tax Rate:</strong> {percent(prop_rate, accuracy = 0.01)}<br/>
+       <strong>High School Size Est.:</strong> {comma(school_size_est)}<br/>
+       <strong>School Rating:</strong> {ifelse(is.na(normalized_school_score), 'NA', paste0(round(normalized_school_score, 1), '%'))} (overall); 
+       {percent(mcas_rank, accuracy = 1)} (MCAS); 
+       {percent(ap_rank,   accuracy = 1)} (AP)<br/>
+       <strong>To Croton (NY):</strong> {round(dist_mi)} miles ({round(dist_mi / 65 * 60)} min)"
+    ) |> as.character()
+  ) %>%
   select(town_name, fill_color, popup_html, geometry)
 
 saveRDS(towns_map, "data/towns_map.rds")
