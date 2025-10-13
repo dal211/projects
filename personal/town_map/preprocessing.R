@@ -48,11 +48,11 @@ mcas_agg <- mcas %>%
   group_by(DIST_CODE, DIST_NAME) %>%
   summarize(
     # cohort size across grades/subjects
-    tested_total = sum(STU_CNT, na.rm = TRUE),
-    
+    stu_cnt = median(STU_CNT),
+
     # achievement: weight by tested count
     avg_score = weighted.mean(AVG_SCALED_SCORE, w = STU_CNT, na.rm = TRUE),
-    
+
     # growth: weight by students included in SGP
     sgp_included = sum(AVG_SGP_INCL, na.rm = TRUE),
     avg_sgp = ifelse(
@@ -63,7 +63,7 @@ mcas_agg <- mcas %>%
     .groups = "drop"
   ) %>%
   mutate(
-    school_size_est = round(tested_total / 4)  # or use your preferred assumption
+    school_size_est = stu_cnt * 4
   )
 
 
@@ -91,10 +91,10 @@ three_bed_home_price_zil <- read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_
   )
 
 # Add property tax rates
-prop_tax_rates <- read_xlsx("data/taxratesbyclass.xlsx") %>% 
+prop_tax_rates <- read_xlsx("data/taxratesbyclass.xlsx") %>%
   mutate(
     prop_rate = Residential / 1000
-  ) %>% 
+  ) %>%
   select(Municipality, prop_rate)
 
 # Town geometry and joins
@@ -106,10 +106,10 @@ towns_sf <- tigris::county_subdivisions(state = "MA", cb = TRUE, year = 2023) %>
   left_join(three_bed_home_price_zil, by = c("region_name" = "RegionName")) %>%
   left_join(ap_scores, by = "DIST_CODE") %>%
   mutate(
-    muni_id = str_replace(town_name,".Town$", ""),
+    muni_id = str_replace(town_name, ".Town$", ""),
     muni_id = if_else(town_name == "Manchester-by-the-Sea", "Manchester By The Sea", muni_id)
-  ) %>% 
-  left_join(prop_tax_rates %>% select(Municipality, prop_rate) , by = c("muni_id" = "Municipality")) %>%
+  ) %>%
+  left_join(prop_tax_rates %>% select(Municipality, prop_rate), by = c("muni_id" = "Municipality")) %>%
   st_transform(4326)
 
 # Croton geometry
@@ -154,7 +154,7 @@ towns_sf <- towns_sf %>%
       sgp_outlook == "Growth: Typical" ~ "➡️",
       TRUE ~ "—"
     ),
-  ) %>% 
+  ) %>%
   mutate(
     dist_to_croton_mi = dist_to_croton_mi + 50,
     mcas_rank = percent_rank(avg_score),
@@ -164,7 +164,7 @@ towns_sf <- towns_sf %>%
     school_color = if_else(normalized_school_score >= 70, 1, 0),
     tier_2_color = if_else(normalized_school_score > 50 & normalized_school_score < 69, 1, 0),
     fill_color = case_when(
-      tier_2_color ==1 ~ "#AB47BC",
+      tier_2_color == 1 ~ "#AB47BC",
       school_color == 1 ~ "#009688",
       TRUE ~ "transparent"
     )
@@ -193,11 +193,11 @@ towns_sf <- towns_sf |>
   st_simplify(dTolerance = 100) |>
   st_make_valid()
 
-towns_sf <- towns_sf %>% 
+towns_sf <- towns_sf %>%
   left_join(
     pop_density,
     by = c("town_name" = "town_clean")
-  ) %>% 
+  ) %>%
   mutate(density = round(density))
 
 towns_map <- towns_sf %>%
@@ -207,7 +207,11 @@ towns_map <- towns_sf %>%
       "<strong>Town:</strong> {town_name}<br/>
        <strong>Area Feel:</strong> {dens_cat} ({comma(density)} per sq mi)<br/>
        <strong>School District:</strong> {DIST_NAME}<br/>
-       <strong>Median Home Price (3 bed):</strong> {dollar(current_typ_home_value, accuracy = 1)}<br/>
+       <strong>Median Home Price (3 bed):</strong> {
+         ifelse(is.na(current_typ_home_value),
+                'NA',
+                scales::label_number(accuracy = 1, scale = 1/1000, suffix = 'k', big.mark = '')(current_typ_home_value))
+       }<br/>
        <strong>Property Tax Rate:</strong> {percent(prop_rate, accuracy = 0.01)}<br/>
        <strong>High School Size Est.:</strong> {comma(school_size_est)}<br/>
        <strong>School Rating:</strong> {ifelse(is.na(normalized_school_score), 'NA', paste0(round(normalized_school_score, 1), '%'))} (overall); 
@@ -222,5 +226,3 @@ towns_map <- towns_sf %>%
 
 saveRDS(towns_map, "data/towns_map.rds")
 saveRDS(towns_sf, "data/towns_sf.rds")
-
-
