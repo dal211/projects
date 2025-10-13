@@ -42,18 +42,30 @@ mcas <- read_csv("data/MCAS_Achievement_Results_20250415.csv") %>%
     TEST_GRADE == "10",
     ORG_TYPE == "Public School District"
   ) %>%
-  select(SY:STUGRP, STU_CNT, E_CNT, AVG_SCALED_SCORE)
+  select(SY:STUGRP, STU_CNT, E_CNT, AVG_SCALED_SCORE, contains("SGP"))
 
 mcas_agg <- mcas %>%
   group_by(DIST_CODE, DIST_NAME) %>%
   summarize(
-    stu_cnt         = median(STU_CNT),
-    avg_score       = round(weighted.mean(AVG_SCALED_SCORE, w = STU_CNT), 0)
+    # cohort size across grades/subjects
+    tested_total = sum(STU_CNT, na.rm = TRUE),
+    
+    # achievement: weight by tested count
+    avg_score = weighted.mean(AVG_SCALED_SCORE, w = STU_CNT, na.rm = TRUE),
+    
+    # growth: weight by students included in SGP
+    sgp_included = sum(AVG_SGP_INCL, na.rm = TRUE),
+    avg_sgp = ifelse(
+      sgp_included > 0,
+      weighted.mean(AVG_SGP, w = AVG_SGP_INCL, na.rm = TRUE),
+      NA_real_
+    ),
+    .groups = "drop"
   ) %>%
-  ungroup() %>%
   mutate(
-    school_size_est = stu_cnt * 4
+    school_size_est = round(tested_total / 4)  # or use your preferred assumption
   )
+
 
 ap_scores <- read_csv("data/Advanced_Placement__AP__Performance_20250525.csv") %>%
   filter(ORG_TYPE == "District", SUBJ_CAT == "All Subjects", STU_GRP == "All Students", SY == "2024") %>%
@@ -127,10 +139,28 @@ towns_sf <- towns_sf %>%
       ) / 1000 / 1.60934)
   ) %>%
   mutate(
+    sgp_outlook = case_when(
+      is.na(avg_sgp) ~ "Growth: not available",
+      is.na(sgp_included) ~ "Growth: not available",
+      sgp_included < 20 ~ "Growth: insufficient data",
+      avg_sgp >= 60 ~ "Growth: High",
+      avg_sgp <= 39 ~ "Growth: Low",
+      TRUE ~ "Growth: Typical"
+    ),
+    # optional icon flair
+    sgp_outlook_icon = case_when(
+      sgp_outlook == "Growth: High" ~ "⬆️",
+      sgp_outlook == "Growth: Low" ~ "⬇️",
+      sgp_outlook == "Growth: Typical" ~ "➡️",
+      TRUE ~ "—"
+    ),
+  ) %>% 
+  mutate(
     dist_to_croton_mi = dist_to_croton_mi + 50,
     mcas_rank = percent_rank(avg_score),
     ap_rank = percent_rank(PCT_3_5),
-    normalized_school_score = round((.5 * mcas_rank + .5 * ap_rank) * 100, 1),
+    sgp_rank = percent_rank(avg_sgp),
+    normalized_school_score = round((.6 * mcas_rank + .4 * ap_rank) * 100, 1),
     school_color = if_else(normalized_school_score >= 70, 1, 0),
     tier_2_color = if_else(normalized_school_score > 50 & normalized_school_score < 69, 1, 0),
     fill_color = case_when(
@@ -170,11 +200,6 @@ towns_sf <- towns_sf %>%
   ) %>% 
   mutate(density = round(density))
 
-# Build popup HTML and keep only needed columns
-library(dplyr)
-library(glue)
-library(scales)
-
 towns_map <- towns_sf %>%
   mutate(across(where(is.factor), as.character)) %>%
   mutate(
@@ -188,8 +213,10 @@ towns_map <- towns_sf %>%
        <strong>School Rating:</strong> {ifelse(is.na(normalized_school_score), 'NA', paste0(round(normalized_school_score, 1), '%'))} (overall); 
        {percent(mcas_rank, accuracy = 1)} (MCAS); 
        {percent(ap_rank,   accuracy = 1)} (AP)<br/>
+       <strong>School Outlook:</strong> {sgp_outlook}{ifelse(is.na(avg_sgp), '', paste0(' (', round(avg_sgp, 0), ')'))}<br/>
        <strong>To Croton (NY):</strong> {round(dist_mi)} miles ({round(dist_mi / 65 * 60)} min)"
-    ) |> as.character()
+    ) |>
+      as.character()
   ) %>%
   select(town_name, fill_color, popup_html, geometry)
 
