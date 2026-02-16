@@ -43,6 +43,13 @@ const LESSON_THEMES = {
         3: { title: "Drinks & Likes", desc: "Coffee, Tea, Shirt, Fresh" },
         4: { title: "She's always smiling", desc: "Smart, Enthusiastic, Supermarket" },
         5: { title: "Health & Seasons", desc: "Fever, Spring, Summer, Care" },
+    },
+    4: {
+        1: { title: "Love & Affection", desc: "Romance, Arrange, Safe, Guarantee" },
+        2: { title: "Daily Life & Work", desc: "Performance, Biscuit, Regardless" },
+        3: { title: "Feelings & Communication", desc: "Success, Honest, Shocked" },
+        4: { title: "Time & Occasions", desc: "Careless, Answer, Disturb" },
+        5: { title: "Society & Culture", desc: "Apologize, Earth, Movement" },
     }
 };
 
