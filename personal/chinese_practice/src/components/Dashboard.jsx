@@ -3,21 +3,47 @@ import { getMastery } from '../engine/srs.js';
 import { exportProgress } from '../engine/storage.js';
 
 const LESSON_THEMES = {
-    1: { title: "Greetings & Basics", desc: "Hello, Goodbye, Thank you" },
-    2: { title: "People & Introductions", desc: "Pronouns, Who, What, Name" },
-    3: { title: "Numbers", desc: "Counting 1-10" },
-    4: { title: "Family", desc: "Dad, Mom, Son, Daughter" },
-    5: { title: "Time & Dates", desc: "Today, Tomorrow, Year, Month" },
-    6: { title: "Daily Activities", desc: "Eat, Drink, Sleep, Listen" },
-    7: { title: "Food & Drink", desc: "Rice, Tea, Fruit, Delicious" },
-    8: { title: "Places & Going Out", desc: "School, Hospital, Store" },
-    9: { title: "Common Verbs", desc: "Want, Can, Have, Like" },
-    10: { title: "Descriptions", desc: "Big, Small, Hot, Cold" },
-    11: { title: "Weather & Nature", desc: "Rain, Weather, Why" },
-    12: { title: "Transport", desc: "Car, Taxi, Directions" },
-    13: { title: "Money & Shopping", desc: "Buy, Money, How much" },
-    14: { title: "Conversation", desc: "Phone, Computer, Study" },
-    15: { title: "Review & Essentials", desc: "Mr., Miss, You're welcome" },
+    1: {
+        1: { title: "Greetings & Basics", desc: "Hello, Goodbye, Thank you" },
+        2: { title: "People & Introductions", desc: "Pronouns, Who, What, Name" },
+        3: { title: "Numbers", desc: "Counting 1-10" },
+        4: { title: "Family", desc: "Dad, Mom, Son, Daughter" },
+        5: { title: "Time & Dates", desc: "Today, Tomorrow, Year, Month" },
+        6: { title: "Daily Activities", desc: "Eat, Drink, Sleep, Listen" },
+        7: { title: "Food & Drink", desc: "Rice, Tea, Fruit, Delicious" },
+        8: { title: "Places & Going Out", desc: "School, Hospital, Store" },
+        9: { title: "Common Verbs", desc: "Want, Can, Have, Like" },
+        10: { title: "Descriptions", desc: "Big, Small, Hot, Cold" },
+        11: { title: "Weather & Nature", desc: "Rain, Weather, Why" },
+        12: { title: "Transport", desc: "Car, Taxi, Directions" },
+        13: { title: "Money & Shopping", desc: "Buy, Money, How much" },
+        14: { title: "Conversation", desc: "Phone, Computer, Study" },
+        15: { title: "Review & Essentials", desc: "Mr., Miss, You're welcome" },
+    },
+    2: {
+        1: { title: "Travel & Location", desc: "Airport, Station, Far, Near" },
+        2: { title: "Daily Routine", desc: "Get up, Sleep, Begin, Prepare" },
+        3: { title: "Colors & Descriptions", desc: "Red, White, New, Old" },
+        4: { title: "Sports & Exercise", desc: "Run, Swim, Play ball" },
+        5: { title: "Feelings & Body", desc: "Sick, Medicine, Eye, Hand" },
+        6: { title: "Food & Service", desc: "Waiter, Egg, Lamb, Cheap" },
+        7: { title: "Weather & Seasons", desc: "Winter, Snow, Cloudy" },
+        8: { title: "House & Objects", desc: "Door, Room, Light, Watch" },
+        9: { title: "Work & Study", desc: "Exam, Question, Meaning" },
+        10: { title: "Relationships", desc: "Wife, Husband, Help, Introduce" },
+        11: { title: "Time & Frequency", desc: "Every, Time, Long, Fast" },
+        12: { title: "Comparisons", desc: "More, Most, Than" },
+        13: { title: "Actions & Directions", desc: "Enter, Give, Ask, Wait" },
+        14: { title: "Modals & Particles", desc: "Because, So, Although" },
+        15: { title: "Review & Integration", desc: "Travel, Birthday, Sing" },
+    },
+    3: {
+        1: { title: "Weekend Plans", desc: "Plan, Weekend, North, South" },
+        2: { title: "At the Office", desc: "Manager, Secretary, Leg, Hurt" },
+        3: { title: "Drinks & Likes", desc: "Coffee, Tea, Shirt, Fresh" },
+        4: { title: "She's always smiling", desc: "Smart, Enthusiastic, Supermarket" },
+        5: { title: "Health & Seasons", desc: "Fever, Spring, Summer, Care" },
+    }
 };
 
 export default function Dashboard({ currentLevel, setLevel, progress, dueCount, onStartLesson, onStartReview, onReset, audioReady }) {
@@ -122,8 +148,8 @@ export default function Dashboard({ currentLevel, setLevel, progress, dueCount, 
                     const isActive = num === currentLesson || (num <= currentLesson && !isCompleted);
                     const isLocked = num > currentLesson && !isCompleted;
 
-                    // Theme logic needs refinement for multi-level. For now, only HSK 1 uses themes.
-                    const theme = currentLevel === 1 ? LESSON_THEMES[num] : null;
+                    // Theme logic
+                    const theme = LESSON_THEMES[currentLevel]?.[num];
 
                     // Calculate lesson mastery
                     const vocab = getVocabByLesson(num);
