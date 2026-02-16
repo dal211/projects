@@ -50,6 +50,13 @@ const LESSON_THEMES = {
         3: { title: "Feelings & Communication", desc: "Success, Honest, Shocked" },
         4: { title: "Time & Occasions", desc: "Careless, Answer, Disturb" },
         5: { title: "Society & Culture", desc: "Apologize, Earth, Movement" },
+    },
+    5: {
+        1: { title: "Individual & Perspective", desc: "Cherish, Comfort, Coastal, Grasp" },
+        2: { title: "Family & Society", desc: "Insurance, Background, Undergraduate" },
+        3: { title: "Communication & Expression", desc: "Debate, Symbol, facial expression" },
+        4: { title: "Finance & Development", desc: "Property, Interview, Rainbow" },
+        5: { title: "Society & Culture", desc: "Damp, Thorough, Ingredient" },
     }
 };
 
