@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getVocabByLesson } from '../data/hsk1-vocab.js';
-import { getSentencesByLesson } from '../data/hsk1-sentences.js';
+import { getLevelData } from '../data/index.js';
 import { createSRSItem, calculateNextReview, qualityFromResult, getMastery } from '../engine/srs.js';
 import VocabCard from './VocabCard.jsx';
 import QuizCard from './QuizCard.jsx';
@@ -12,7 +11,7 @@ import LessonSummary from './LessonSummary.jsx';
 // Lesson phases
 const PHASES = ['vocab', 'quiz', 'sentences', 'sentence-quiz', 'summary'];
 
-export default function Lesson({ lessonNum, progress, updateProgress, onComplete, onBack, audioReady }) {
+export default function Lesson({ level, lessonNum, progress, updateProgress, onComplete, onBack, audioReady }) {
     const [phase, setPhase] = useState(0); // index into PHASES
     const [vocabIndex, setVocabIndex] = useState(0);
     const [quizIndex, setQuizIndex] = useState(0);
@@ -21,6 +20,7 @@ export default function Lesson({ lessonNum, progress, updateProgress, onComplete
     const [scores, setScores] = useState({ correct: 0, partial: 0, incorrect: 0, total: 0 });
     const [wordResults, setWordResults] = useState({}); // vocabId -> 'correct'|'partial'|'incorrect'
 
+    const { getVocabByLesson, getSentencesByLesson } = getLevelData(level);
     const vocab = getVocabByLesson(lessonNum);
     const sentences = getSentencesByLesson(lessonNum);
     const currentPhase = PHASES[phase];

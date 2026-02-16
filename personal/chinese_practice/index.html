@@ -1,17 +1,47 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>華語練習 — Mandarin Chinese Practice</title>
-    <meta name="description" content="Learn Mandarin Chinese vocabulary and sentences organized by HSK level, with spaced repetition and interactive exercises." />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>華語練習 — Mandarin Chinese Practice</title>
+  <meta name="description"
+    content="Learn Mandarin Chinese vocabulary and sentences organized by HSK level, with spaced repetition and interactive exercises." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap"
+    rel="stylesheet">
+  <script>
+    window.onerror = function (message, source, lineno, colno, error) {
+      showError(message, `${source}:${lineno}:${colno}`, error?.stack);
+    };
+
+    window.onunhandledrejection = function (event) {
+      showError("Async Error: " + event.reason, "Promise Rejection", event.reason?.stack);
+    };
+
+    function showError(message, source, stack) {
+      document.body.innerHTML = `
+          <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:#900;color:white;padding:20px;z-index:9999;font-family:monospace;overflow:auto;">
+            <h3>Application Crash</h3>
+            <p><strong>Message:</strong> ${message}</p>
+            <p><strong>Source:</strong> ${source}</p>
+            <p><strong>Stack:</strong> ${stack || 'No stack trace'}</p>
+            <hr/>
+            <button onclick="localStorage.clear();location.reload();" style="padding:10px;background:white;color:black;border:none;cursor:pointer;font-weight:bold;">Clear Data & Reload Utility</button>
+            <p style="font-size:0.8rem;margin-top:10px;">If clearing data doesn't work, there might be a syntax error in the code.</p>
+          </div>
+        `;
+    }
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+  <script>console.log("Index.html loaded");</script>
+</body>
+
 </html>

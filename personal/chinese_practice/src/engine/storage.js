@@ -17,6 +17,30 @@ const INITIAL_STATE = {
             completedLessons: [],
             srsData: {},
             lessonScores: {},
+        },
+        3: {
+            currentLesson: 1,
+            completedLessons: [],
+            srsData: {},
+            lessonScores: {},
+        },
+        4: {
+            currentLesson: 1,
+            completedLessons: [],
+            srsData: {},
+            lessonScores: {},
+        },
+        5: {
+            currentLesson: 1,
+            completedLessons: [],
+            srsData: {},
+            lessonScores: {},
+        },
+        6: {
+            currentLesson: 1,
+            completedLessons: [],
+            srsData: {},
+            lessonScores: {},
         }
     },
     settings: {
