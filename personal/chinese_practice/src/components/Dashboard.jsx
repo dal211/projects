@@ -57,6 +57,13 @@ const LESSON_THEMES = {
         3: { title: "Communication & Expression", desc: "Debate, Symbol, facial expression" },
         4: { title: "Finance & Development", desc: "Property, Interview, Rainbow" },
         5: { title: "Society & Culture", desc: "Damp, Thorough, Ingredient" },
+    },
+    6: {
+        1: { title: "Nature & Science", desc: "Suffer, Ambiguous, Serene, Mystery" },
+        2: { title: "Abstract Concepts", desc: "Grasp, Trick, Break away, Companion" },
+        3: { title: "Formal & Literary", desc: "Shield, Saturation, Conservator" },
+        4: { title: "Professional & Social", desc: "Violence, Erupt, Recite, Instinct" },
+        5: { title: "Thought & Philosophy", desc: "Collapse, Flourish, Malpractice" },
     }
 };
 
