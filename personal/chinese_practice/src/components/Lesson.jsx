@@ -11,36 +11,53 @@ import LessonSummary from './LessonSummary.jsx';
 // Lesson phases
 const PHASES = ['vocab', 'quiz', 'sentences', 'sentence-quiz', 'summary'];
 
-export default function Lesson({ level, lessonNum, progress, updateProgress, onComplete, onBack, audioReady }) {
-    const [phase, setPhase] = useState(0); // index into PHASES
-    const [vocabIndex, setVocabIndex] = useState(0);
-    const [quizIndex, setQuizIndex] = useState(0);
-    const [sentenceIndex, setSentenceIndex] = useState(0);
-    const [sentenceQuizIndex, setSentenceQuizIndex] = useState(0);
-    const [scores, setScores] = useState({ correct: 0, partial: 0, incorrect: 0, total: 0 });
-    const [wordResults, setWordResults] = useState({}); // vocabId -> 'correct'|'partial'|'incorrect'
+export default function Lesson({ level, lessonNum, progress, updateProgress, activeLessonData, updateActiveLessonData, onComplete, onBack, audioReady }) {
+    const [phase, setPhase] = useState(activeLessonData?.phase || 0);
+    const [vocabIndex, setVocabIndex] = useState(activeLessonData?.vocabIndex || 0);
+    const [quizIndex, setQuizIndex] = useState(activeLessonData?.quizIndex || 0);
+    const [sentenceIndex, setSentenceIndex] = useState(activeLessonData?.sentenceIndex || 0);
+    const [sentenceQuizIndex, setSentenceQuizIndex] = useState(activeLessonData?.sentenceQuizIndex || 0);
+    const [scores, setScores] = useState(activeLessonData?.scores || { correct: 0, partial: 0, incorrect: 0, total: 0 });
+    const [wordResults, setWordResults] = useState(activeLessonData?.wordResults || {});
 
     const { getVocabByLesson, getSentencesByLesson } = getLevelData(level);
     const vocab = getVocabByLesson(lessonNum);
     const sentences = getSentencesByLesson(lessonNum);
     const currentPhase = PHASES[phase];
 
-    // Shuffle vocab for quiz (but keep original for intro)
-    const [quizOrder, setQuizOrder] = useState([]);
-    const [sentenceQuizOrder, setSentenceQuizOrder] = useState([]);
+    const [quizOrder, setQuizOrder] = useState(activeLessonData?.quizOrder || []);
+    const [sentenceQuizOrder, setSentenceQuizOrder] = useState(activeLessonData?.sentenceQuizOrder || []);
+
+    // Effect to sync state back to parent
+    useEffect(() => {
+        updateActiveLessonData({
+            phase,
+            vocabIndex,
+            quizIndex,
+            sentenceIndex,
+            sentenceQuizIndex,
+            scores,
+            wordResults,
+            quizOrder,
+            sentenceQuizOrder
+        });
+    }, [phase, vocabIndex, quizIndex, sentenceIndex, sentenceQuizIndex, scores, wordResults, quizOrder, sentenceQuizOrder, updateActiveLessonData]);
 
     useEffect(() => {
-        // Shuffle quiz order
-        const shuffled = [...vocab].sort(() => Math.random() - 0.5);
-        setQuizOrder(shuffled);
+        // Only shuffle if we don't have an order yet
+        if (quizOrder.length === 0) {
+            const shuffled = [...vocab].sort(() => Math.random() - 0.5);
+            setQuizOrder(shuffled);
+        }
 
-        // Create sentence quiz order — mix of exercise types
-        const sentenceExercises = sentences.flatMap((s, i) => {
-            const types = ['translate', 'scramble', 'fillblank'];
-            return [{ sentence: s, type: types[i % types.length] }];
-        });
-        setSentenceQuizOrder(sentenceExercises.sort(() => Math.random() - 0.5));
-    }, [lessonNum]);
+        if (sentenceQuizOrder.length === 0) {
+            const sentenceExercises = sentences.flatMap((s, i) => {
+                const types = ['translate', 'scramble', 'fillblank'];
+                return [{ sentence: s, type: types[i % types.length] }];
+            });
+            setSentenceQuizOrder(sentenceExercises.sort(() => Math.random() - 0.5));
+        }
+    }, [lessonNum, vocab, sentences]); // Dependency includes vocab/sentences to ensure we shuffle if the lesson actually changes
 
     // Initialize SRS items for new vocab
     useEffect(() => {
@@ -58,7 +75,7 @@ export default function Lesson({ level, lessonNum, progress, updateProgress, onC
             }
             return prev;
         });
-    }, [lessonNum]);
+    }, [lessonNum, vocab, updateProgress]);
 
     const totalSteps = vocab.length + vocab.length + sentences.length + sentenceQuizOrder.length;
     const currentStep = (() => {

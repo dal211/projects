@@ -46,6 +46,9 @@ const INITIAL_STATE = {
     settings: {
         audioEnabled: true,
     },
+    currentView: 'dashboard',
+    activeLesson: null,
+    activeLessonData: null,
     lastActive: null,
 };
 

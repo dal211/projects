@@ -8,24 +8,31 @@ import { initAudio } from '../engine/audio.js';
 import hsk1Vocab from '../data/hsk1-vocab.js';
 
 export default function App() {
-    const [view, setView] = useState('dashboard'); // dashboard | lesson | review
-    const [currentLesson, setCurrentLesson] = useState(null);
-    const [userProgress, setUserProgress] = useState(null); // Full progress object
+    // 1. Load initial state synchronously to avoid race conditions with saves
+    const initialData = loadProgress();
+
+    const [view, setView] = useState(initialData.currentView || 'dashboard');
+    const [currentLesson, setCurrentLesson] = useState(initialData.activeLesson || null);
+    const [activeLessonData, setActiveLessonData] = useState(initialData.activeLessonData || null);
+    const [userProgress, setUserProgress] = useState(initialData);
     const [audioReady, setAudioReady] = useState(false);
 
-    // Load progress on mount
+    // Initial tasks on mount
     useEffect(() => {
-        const saved = loadProgress();
-        setUserProgress(saved);
         initAudio().then(ready => setAudioReady(ready));
     }, []);
 
     // Save progress whenever it changes
     useEffect(() => {
         if (userProgress) {
-            saveProgress(userProgress);
+            saveProgress({
+                ...userProgress,
+                currentView: view,
+                activeLesson: currentLesson,
+                activeLessonData: activeLessonData
+            });
         }
-    }, [userProgress]);
+    }, [userProgress, view, currentLesson, activeLessonData]);
 
     // Helper to get current level's progress
     const currentLevel = userProgress?.level || 1;
@@ -58,6 +65,7 @@ export default function App() {
 
     const startLesson = useCallback((lessonNum) => {
         setCurrentLesson(lessonNum);
+        setActiveLessonData(null); // Clear previous lesson data if any
         setView('lesson');
     }, []);
 
@@ -81,6 +89,7 @@ export default function App() {
         });
         setView('dashboard');
         setCurrentLesson(null);
+        setActiveLessonData(null);
     }, [updateLevelProgress]);
 
     const startReview = useCallback(() => {
@@ -137,6 +146,8 @@ export default function App() {
                     lessonNum={currentLesson}
                     progress={progress}
                     updateProgress={updateLevelProgress}
+                    activeLessonData={activeLessonData}
+                    updateActiveLessonData={setActiveLessonData}
                     onComplete={completeLesson}
                     onBack={goHome}
                     audioReady={audioReady}
