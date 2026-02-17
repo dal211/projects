@@ -6,7 +6,7 @@
 *.docx
 map_box_testing.qmd
 mapping.Rmd
-data/
+/data/
 output/
 budgeting/
 archive/
