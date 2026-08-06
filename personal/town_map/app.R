@@ -71,6 +71,15 @@ ui <- fluidPage(
   }
 ")),
     tags$style(HTML("
+  .custom-ruler-ctrl { margin-top: 4px; }
+  .custom-ruler-ctrl button {
+    width: 28px; height: 28px; background:#fff; border:0; cursor:pointer;
+    font-size: 14px; line-height: 1;
+  }
+  .custom-ruler-ctrl button:hover { background:#f0f0f0; }
+  .custom-ruler-ctrl button.active { background:#2962FF; color:#fff; }
+")),
+    tags$style(HTML("
   .mobile-search-btn {
     display: none;
     position: fixed;
@@ -172,6 +181,149 @@ ui <- fluidPage(
   Shiny.addCustomMessageHandler('map-ready', function(x){
     var overlay = document.getElementById('map-loading-overlay');
     if (overlay) overlay.style.display = 'none';
+  });
+
+  // Distance-ruler tool: click the button to arm it, click point A, click
+  // point B, done. Any click before arming, or after B is placed, is a
+  // normal map click (town popups etc. keep working) since the tool
+  // auto-disarms itself the instant the second point lands.
+  Shiny.addCustomMessageHandler('attach-distance-tool', function(id){
+    var root = document.getElementById(id);
+    if (!root) return;
+    var widget = HTMLWidgets.find('#' + id);
+    if (!widget) return;
+    var map = widget.getMap();
+    if (!map) return;
+
+    var corner = root.querySelector('.maplibregl-ctrl-top-right');
+    if (!corner) return;
+    if (corner.querySelector('.custom-ruler-ctrl')) return; // avoid dup on hot-reload
+
+    var emptyFC = { type: 'FeatureCollection', features: [] };
+
+    // MapLibre rejects addSource() until the style has loaded. Don't gate on
+    // isStyleLoaded() though — it is far stricter than addSource needs, and
+    // reports false whenever any basemap tile is still streaming in, which
+    // would silently swallow clicks. Instead just attempt the setup, retry
+    // until it takes, and remember once it has.
+    var layersReady = false;
+    function ensureLayers() {
+      if (layersReady) return true;
+      try {
+        if (!map.getSource('ruler-line')) {
+          map.addSource('ruler-line', { type: 'geojson', data: emptyFC });
+          map.addLayer({
+            id: 'ruler-line-layer', type: 'line', source: 'ruler-line',
+            paint: { 'line-color': '#2962FF', 'line-width': 3, 'line-dasharray': [2, 1] }
+          });
+          map.addSource('ruler-points', { type: 'geojson', data: emptyFC });
+          map.addLayer({
+            id: 'ruler-points-layer', type: 'circle', source: 'ruler-points',
+            paint: {
+              'circle-radius': 5, 'circle-color': '#fff',
+              'circle-stroke-color': '#2962FF', 'circle-stroke-width': 2
+            }
+          });
+        }
+        layersReady = true;
+      } catch (e) {
+        return false; // style not ready yet; retried on load / next click
+      }
+      return true;
+    }
+
+    ensureLayers();
+    map.on('load', ensureLayers);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.title = 'Measure distance';
+    btn.innerHTML = '<i class=\"fa fa-ruler\"></i>';
+
+    var measuring = false;
+    var pointA = null;
+    var distancePopup = null;
+
+    function clearRuler() {
+      if (ensureLayers()) {
+        map.getSource('ruler-line').setData(emptyFC);
+        map.getSource('ruler-points').setData(emptyFC);
+      }
+      if (distancePopup) {
+        distancePopup.remove();
+        distancePopup = null;
+      }
+      pointA = null;
+    }
+
+    function setActive(active) {
+      measuring = active;
+      map.getCanvas().style.cursor = active ? 'crosshair' : '';
+      btn.classList.toggle('active', active);
+    }
+
+    function placeA(lngLat) {
+      if (!ensureLayers()) return;
+      pointA = lngLat;
+      map.getSource('ruler-points').setData({
+        type: 'FeatureCollection',
+        features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: pointA } }]
+      });
+    }
+
+    function finishAt(lngLat) {
+      if (!ensureLayers()) return;
+      var line = turf.lineString([pointA, lngLat]);
+      var miles = turf.length(line, { units: 'miles' });
+      var label = miles < 0.1
+        ? Math.round(miles * 5280) + ' ft'
+        : miles.toFixed(2) + ' mi';
+      var mid = turf.along(line, miles / 2, { units: 'miles' });
+
+      map.getSource('ruler-line').setData(line);
+      map.getSource('ruler-points').setData({
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', geometry: { type: 'Point', coordinates: pointA } },
+          { type: 'Feature', geometry: { type: 'Point', coordinates: lngLat } }
+        ]
+      });
+
+      if (distancePopup) distancePopup.remove();
+      distancePopup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        anchor: 'top' // label hangs below the point, i.e. underneath the line
+      })
+        .setLngLat(mid.geometry.coordinates)
+        .setHTML('<div style=\"font-weight:600;font-size:13px;\">' + label + '</div>')
+        .addTo(map);
+
+      // Done after exactly two points; further clicks are ignored until
+      // the tool is armed again via the button.
+      setActive(false);
+    }
+
+    map.on('click', function (e) {
+      if (!measuring) return;
+      var lngLat = [e.lngLat.lng, e.lngLat.lat];
+      if (!pointA) {
+        placeA(lngLat);
+      } else {
+        finishAt(lngLat);
+      }
+    });
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      clearRuler();
+      setActive(true);
+    });
+
+    var group = document.createElement('div');
+    group.className = 'maplibregl-ctrl maplibregl-ctrl-group custom-ruler-ctrl';
+    group.appendChild(btn);
+    corner.appendChild(group);
   });
 "))
   ),
@@ -455,6 +607,7 @@ server <- function(input, output, session) {
 
   session$onFlushed(function() {
     session$sendCustomMessage("attach-tip", "townMap") # 'townMap' = your map output id
+    session$sendCustomMessage("attach-distance-tool", "townMap")
     session$sendCustomMessage("map-ready", TRUE)
   }, once = TRUE)
 }
