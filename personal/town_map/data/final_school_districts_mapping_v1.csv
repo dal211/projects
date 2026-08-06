@@ -1,0 +1,552 @@
+town_name,DIST_NAME
+Seabrook,Triton
+Mashpee Neck,Mashpee
+Hanson,Whitman-Hanson
+South Lancaster,Nashoba
+Beverly,Beverly
+North Scituate,Scituate
+Salisbury,Triton
+Dover,Dover-Sherborn
+Northfield,Pioneer Valley
+Pinehurst,Billerica
+Cochituate,Wayland
+East Falmouth,Falmouth
+Teaticket,Falmouth
+East Harwich,Monomoy Regional School District
+Harwich Center,Monomoy Regional School District
+Harwich Port,Monomoy Regional School District
+Northwest Harwich,Monomoy Regional School District
+North Eastham,Nauset
+North Plymouth,Plymouth
+Huntington,Gateway
+Somerset,Somerset Berkley Regional School District
+Ocean Grove,Swansea
+Bliss Corner,Dartmouth
+Whitinsville,Northbridge
+East Brookfield,North Brookfield
+Smith Mills,Dartmouth
+West Yarmouth,Dennis-Yarmouth
+Yarmouth Port,Dennis-Yarmouth
+South Yarmouth,Dennis-Yarmouth
+Hanscom AFB,Bedford
+Devens,Harvard
+North Lakeville,Freetown-Lakeville
+Townsend,North Middlesex
+Holland,Tantasqua
+Williamstown,Mount Greylock
+Orleans,Nauset
+Provincetown,Provincetown
+Lenox Dale,Lenox
+West Concord,Concord-Carlisle
+Rowley,Pentucket
+Boxford,Masconomet
+Topsfield,Masconomet
+Weweantic,Wareham
+Marion Center,Old Rochester
+Mattapoisett Center,Old Rochester
+East Dennis,Dennis-Yarmouth
+South Dennis,Dennis-Yarmouth
+East Sandwich,Sandwich
+Buzzards Bay,Bourne
+Monument Beach,Bourne
+Pocasset,Bourne
+Dennis Port,Dennis-Yarmouth
+West Dennis,Dennis-Yarmouth
+Forestdale,Sandwich
+Sagamore,Bourne
+East Pepperell,North Middlesex
+Pepperell,North Middlesex
+Millers Falls,Gill-Montague
+Wilbraham,Hampden-Wilbraham
+Cheshire,Hoosac Valley Regional
+Housatonic,Berkshire Hills
+North Pembroke,Pembroke
+Onset,Wareham
+West Wareham,Wareham
+White Island Shores,Wareham
+Raynham Center,Bridgewater-Raynham
+North Seekonk,Seekonk
+North Westport,Westport
+Sturbridge,Tantasqua
+West Warren,Quaboag Regional
+Warren,Ware
+Brookfield,North Brookfield
+Fiskdale,Tantasqua
+Shirley,Ayer Shirley School District
+The Pinehills,Plymouth Public Schools
+Russell,Gateway
+Marshfield Hills,Marshfield
+Ocean Bluff-Brant Rock,Marshfield
+Cordaville,Northboro-Southboro
+Great Barrington,Berkshire Hills
+Turners Falls,Gill-Montague
+South Deerfield,Frontier
+Deerfield,Frontier
+Nahant,Nahant
+North Falmouth,Falmouth
+Chatham,Monomoy Regional School District
+West Chatham,Monomoy Regional School District
+West Falmouth,Falmouth
+Monomoscoy Island,Mashpee
+Popponesset,Mashpee
+Seconsett Island,Mashpee
+New Seabury,Mashpee
+Popponesset Island,Mashpee
+Brewster,Nauset
+Woods Hole,Falmouth
+Essex,Manchester Essex Regional
+South Duxbury,Duxbury
+Cedar Crest,Marshfield
+South Ashburnham,Ashburnham-Westminster
+Rutland,Wachusett
+Upton,Mendon-Upton
+Vineyard Haven,Martha's Vineyard
+Baldwinville,Narragansett
+Shelburne Falls,Mohawk Trail
+Green Harbor,Marshfield
+Chester,Gateway
+Blandford,Gateway
+East Douglas,Douglas
+West Brookfield,North Brookfield
+Barre,Quabbin
+Spencer,Spencer-E Brookfield
+Edgartown,Martha's Vineyard
+Madaket,Nantucket
+Siasconset,Nantucket
+Petersham,Ralph C Mahar
+Seabrook,Triton
+Mashpee Neck,Mashpee
+Hanson,Whitman-Hanson
+South Lancaster,Nashoba
+Beverly,Beverly
+North Scituate,Scituate
+Salisbury,Triton
+Dover,Dover-Sherborn
+Northfield,Pioneer Valley
+Pinehurst,Billerica
+Cochituate,Wayland
+East Falmouth,Falmouth
+Teaticket,Falmouth
+East Harwich,Monomoy Regional School District
+Harwich Center,Monomoy Regional School District
+Harwich Port,Monomoy Regional School District
+Northwest Harwich,Monomoy Regional School District
+North Eastham,Nauset
+North Plymouth,Plymouth
+Huntington,Gateway
+Somerset,Somerset Berkley Regional School District
+Ocean Grove,Swansea
+Bliss Corner,Dartmouth
+Whitinsville,Northbridge
+East Brookfield,North Brookfield
+Smith Mills,Dartmouth
+West Yarmouth,Dennis-Yarmouth
+Yarmouth Port,Dennis-Yarmouth
+South Yarmouth,Dennis-Yarmouth
+Hanscom AFB,Bedford
+Devens,Harvard
+North Lakeville,Freetown-Lakeville
+Townsend,North Middlesex
+Holland,Tantasqua
+Williamstown,Mount Greylock
+Orleans,Nauset
+Provincetown,Provincetown
+Lenox Dale,Lenox
+West Concord,Concord-Carlisle
+Rowley,Pentucket
+Boxford,Masconomet
+Topsfield,Masconomet
+Weweantic,Wareham
+Marion Center,Old Rochester
+Mattapoisett Center,Old Rochester
+East Dennis,Dennis-Yarmouth
+South Dennis,Dennis-Yarmouth
+East Sandwich,Sandwich
+Buzzards Bay,Bourne
+Monument Beach,Bourne
+Pocasset,Bourne
+Dennis Port,Dennis-Yarmouth
+West Dennis,Dennis-Yarmouth
+Forestdale,Sandwich
+Sagamore,Bourne
+East Pepperell,North Middlesex
+Pepperell,North Middlesex
+Millers Falls,Gill-Montague
+Wilbraham,Hampden-Wilbraham
+Cheshire,Hoosac Valley Regional
+Housatonic,Berkshire Hills
+North Pembroke,Pembroke
+Onset,Wareham
+West Wareham,Wareham
+White Island Shores,Wareham
+Raynham Center,Bridgewater-Raynham
+North Seekonk,Seekonk
+North Westport,Westport
+Sturbridge,Tantasqua
+West Warren,Quaboag Regional
+Warren,Ware
+Brookfield,North Brookfield
+Fiskdale,Tantasqua
+Shirley,Ayer Shirley School District
+The Pinehills,Plymouth
+Russell,Gateway
+Marshfield Hills,Marshfield
+Ocean Bluff-Brant Rock,Marshfield
+Cordaville,Northboro-Southboro
+Great Barrington,Berkshire Hills
+Turners Falls,Gill-Montague
+South Deerfield,Frontier
+Deerfield,Frontier
+Nahant,Nahant
+North Falmouth,Falmouth
+Chatham,Monomoy Regional School District
+West Chatham,Monomoy Regional School District
+West Falmouth,Falmouth
+Monomoscoy Island,Mashpee
+Popponesset,Mashpee
+Seconsett Island,Mashpee
+New Seabury,Mashpee
+Popponesset Island,Mashpee
+Brewster,Nauset
+Woods Hole,Falmouth
+Essex,Manchester Essex Regional
+South Duxbury,Duxbury
+Cedar Crest,Marshfield
+South Ashburnham,Ashburnham-Westminster
+Rutland,Wachusett
+Upton,Mendon-Upton
+Vineyard Haven,Martha's Vineyard
+Baldwinville,Narragansett
+Shelburne Falls,Mohawk Trail
+Green Harbor,Marshfield
+Chester,Gateway
+Blandford,Gateway
+East Douglas,Douglas
+West Brookfield,North Brookfield
+Barre,Quabbin Regional
+Spencer,Spencer-E Brookfield
+Edgartown,Martha's Vineyard
+Madaket,Nantucket
+Siasconset,Nantucket
+Petersham,Ralph C Mahar
+Abington,Abington
+Acushnet Center,New Bedford
+Adams,North Adams
+Agawam Town,Agawam
+Amesbury Town,Amesbury
+Amherst Town,Amherst-Pelham
+Andover,Andover
+Arlington,Arlington
+Ashburnham,Ashburnham-Westminster
+Ashland,Ashland
+Athol,Athol-Royalston
+Attleboro,Attleboro
+Auburn,Auburn
+Avon,Avon
+Ayer,Ayer Shirley School District
+Barnstable Town,Barnstable
+Bedford,Bedford
+Belchertown,Belchertown
+Bellingham,Bellingham
+Belmont,Belmont
+Boston,Boston
+Bourne,Bourne
+Braintree Town,Braintree
+Bridgewater Town,West Bridgewater
+Brockton,Brockton
+Brookline,Brookline
+Burlington,Burlington
+Cambridge,Cambridge
+Chelsea,Chelsea
+Chicopee,Chicopee
+Clinton,Clinton
+Danvers,Danvers
+Dedham,Dedham
+Dennis,Dennis-Yarmouth
+Duxbury,Duxbury
+East Longmeadow,East Longmeadow
+Easthampton Town,Easthampton
+Everett,Everett
+Fairhaven,Fairhaven
+Fall River,Fall River
+Falmouth,Falmouth
+Fitchburg,Fitchburg
+Foxborough,Foxborough
+Framingham,Framingham
+Franklin Town,Franklin
+Gardner,Gardner
+Gloucester,Gloucester
+Granby,Granby
+Greenfield,Greenfield
+Groton,Groton-Dunstable
+Hadley,Hadley
+Hamilton,Hamilton-Wenham
+Hampden,Hampden-Wilbraham
+Hampshire,Hampshire
+Hanover,Hanover
+Harvard,Harvard
+Hatfield,Hatfield
+Haverhill,Haverhill
+Hingham,Hingham
+Holbrook,Holbrook
+Holliston,Holliston
+Holyoke,Holyoke
+Hopedale,Hopedale
+Hopkinton,Hopkinton
+Hudson,Hudson
+Hull,Hull
+Ipswich,Ipswich
+Kingston,Silver Lake
+Lawrence,Lawrence
+Lee,Lee
+Lenox,Lenox
+Leominster,Leominster
+Lexington,Lexington
+Littleton Common,Littleton
+Longmeadow,Longmeadow
+Lowell,Lowell
+Lunenburg,Lunenburg
+Lynn,Lynn
+Lynnfield,Lynnfield
+Malden,Malden
+Mansfield Center,Mansfield
+Marblehead,Marblehead
+Marlborough,Marlborough
+Marshfield,Marshfield
+Mashpee,Mashpee
+Maynard,Maynard
+Medfield,Medfield
+Medford,Medford
+Medway,Medway
+Melrose,Melrose
+Methuen Town,Methuen
+Middleborough Center,Middleborough
+Milford,Milford
+Millis-Clicquot,Millis
+Milton,Milton
+Monson Center,Monson
+Nantucket,Nantucket
+Needham,Needham
+New Bedford,New Bedford
+Newburyport,Newburyport
+Newton,Newton
+North Adams,North Adams
+North Attleborough Town,North Attleborough
+North Brookfield,North Brookfield
+Northampton,Northampton
+Northborough,Northboro-Southboro
+Northbridge,Northbridge
+Norton Center,Norton
+Norwood,Norwood
+Oak Bluffs,Oak Bluffs
+Orange,Ralph C Mahar
+Oxford,Oxford
+Palmer Town,Palmer
+Peabody,Peabody
+Pembroke,Pembroke
+Pittsfield,Pittsfield
+Plymouth,Plymouth
+Quincy,Quincy
+Randolph Town,Randolph
+Reading,Reading
+Revere,Revere
+Rockland,Rockland
+Rockport,Rockport
+Salem,Salem
+Sandwich,Sandwich
+Saugus,Saugus
+Scituate,Scituate
+Sharon,Sharon
+Shrewsbury,Shrewsbury
+Somerville,Somerville
+South Hadley,South Hadley
+Southbridge Town,Southbridge
+Springfield,Springfield
+Stoneham,Stoneham
+Stoughton,Stoughton
+Swampscott,Swampscott
+Taunton,Taunton
+Tewksbury,Tewksbury
+Uxbridge,Uxbridge
+Wakefield,Wakefield
+Walpole,Walpole
+Waltham,Waltham
+Ware,Ware
+Wareham Center,Wareham
+Watertown Town,Watertown
+Wayland,Wayland
+Webster,Webster
+Wellesley,Wellesley
+West Boylston,West Boylston
+West Bridgewater,West Bridgewater
+West Springfield Town,West Springfield
+Westborough,Westborough
+Westfield,Westfield
+Westford,Westford
+Weston,Weston
+Westport,Westport
+Westwood,Westwood
+Weymouth Town,Weymouth
+Whitman,Whitman-Hanson
+Wilmington,Wilmington
+Winchendon,Winchendon
+Winchester,Winchester
+Winthrop Town,Winthrop
+Woburn,Woburn
+Worcester,Worcester
+Wareham,Wareham
+Tyngsborough,Tyngsborough
+Swansea,Swansea
+Sutton,Sutton
+Seekonk,Seekonk
+Norwell,Norwell
+Norton,Norton
+North Reading,North Reading
+North Andover,North Andover
+Natick,Natick
+Monson,Monson
+Millis,Millis
+Millbury,Millbury
+Middleborough,Middleborough
+Mansfield,Mansfield
+Ludlow,Ludlow
+Littleton,Littleton
+Leicester,Leicester
+Grafton,Grafton
+Georgetown,Georgetown
+Easton,Easton
+East Bridgewater,East Bridgewater
+Dracut,Dracut
+Douglas,Douglas
+Dartmouth,Dartmouth
+Cohasset,Cohasset
+Chelmsford,Chelmsford
+Carver,Carver
+Canton,Canton
+Billerica,Billerica
+Rochester,Old Rochester
+New Marlborough,Marlborough
+New Braintree,Quabbin
+Leverett,Amherst-Pelham
+Westhampton,Hampshire
+Yarmouth,Dennis-Yarmouth
+Westminster,Ashburnham-Westminster
+Wenham,Hamilton-Wenham
+Wellfleet,Nauset
+Tolland,Southwick-Tolland-Granville Regional School District
+Sudbury,Lincoln-Sudbury
+Southwick,Southwick-Tolland-Granville Regional School District
+Sherborn,Dover-Sherborn
+Royalston,Athol-Royalston
+Rehoboth,Dighton-Rehoboth
+Raynham,Bridgewater-Raynham
+Pelham,Amherst-Pelham
+Norfolk,King Philip
+Newbury,Triton
+New Salem,Ralph C Mahar
+Montague,Gill-Montague
+Millville,Blackstone-Millville
+Mendon,Mendon-Upton
+Lincoln,Lincoln-Sudbury
+Lakeville,Freetown-Lakeville
+Granville,Southwick-Tolland-Granville Regional School District
+Gill,Gill-Montague
+Freetown,Freetown-Lakeville
+Eastham,Nauset
+Dunstable,Groton-Dunstable
+Dudley,Dudley-Charlton Reg
+Dighton,Dighton-Rehoboth
+Concord,Concord-Carlisle
+Charlton,Dudley-Charlton Reg
+Carlisle,Concord-Carlisle
+Boylston,Berlin-Boylston
+Boxborough,Acton-Boxborough
+Blackstone,Blackstone-Millville
+Berlin,Berlin-Boylston
+Berkley,Somerset Berkley Regional School District
+Acton,Acton-Boxborough
+Ashfield,Mohawk Trail
+New Ashford,Mount Greylock
+Hawley,Mohawk Trail
+Bolton,Nashoba
+Southampton,Hampshire
+Shelburne,Bourne
+Wrentham,King Philip
+Shutesbury,Amherst-Pelham
+Sandisfield,Farmington River
+Phillipston,Narragansett
+Middleton,Masconomet
+Washington,Central Berkshire
+Southborough,Northboro-Southboro
+Lanesborough,Mount Greylock
+Alford,Southern Berkshire
+Plainfield,Mohawk Trail
+Chesterfield,Hampshire
+West Newbury,Pentucket
+Tyringham,Southern Berkshire
+Tisbury,Martha's Vineyard
+Princeton,Wachusett
+Dalton,Central Berkshire
+Buckland,Mohawk Trail
+West Stockbridge,Berkshire Hills
+Sheffield,Southern Berkshire
+Middlefield,Gateway
+Stockbridge,Berkshire Hills
+Williamsburg,Hampshire
+Plainville,King Phillip
+Paxton,Wachusett
+Manchester-by-the-Sea,Manchester Essex Regional
+Hubbardston,Quabbin
+Hinsdale,Hoosac Valley Regional
+Heath,Mohawk Trail
+Charlemont,Mohawk Trail
+Bernardston,Pioneer Valley
+Ashby,North Middlesex
+Groveland,Pentucket
+Cummington,Central Berkshire
+Brimfield,Tantasqua
+Acushnet,Fairhaven
+Worthington,Hampshire
+Mount Washington,Southern Berkshire
+Lancaster,Nashoba
+West Tisbury,Martha's Vineyard
+Warwick,Pioneer Valley
+Stow,Nashoba
+Rowe,Mohawk Trail
+Otis,Farmington River
+Whately,Frontier
+Wales,Tantasqua
+Templeton,Narragansett
+Savoy,Hoosac Valley Regional
+Monroe,Hoosac Valley Regional
+Marion,Old Rochester
+Leyden,Pioneer Valley
+Holden,Wachusett
+Harwich,Monomoy Regional School District
+Egremont,Southern Berkshire
+Becket,Central Berkshire
+Florida,Hoosac Valley Regional
+Richmond,Berkshire Hills
+Monterey,Southern Berkshire
+Wendell,Ralph C Mahar
+Plympton,Silver Lake
+Oakham,Quabbin
+Hardwick,Quabbin
+Erving,Ralph C Mahar
+Gosnold,Martha's Vineyard
+Sterling,Wachusett
+Peru,Central Berkshire
+Montgomery,Gateway
+Goshen,Hampshire
+Conway,Frontier
+Windsor,Central Berkshire
+Sunderland,Frontier
+Hancock,Mount Greylock
+Colrain,Mohawk Trail
+Aquinnah,Martha's Vineyard
+Clarksburg,Hoosac Valley Regional
+Chilmark,Martha's Vineyard
+Truro,Nauset
+Mattapoisett,Old Rochester
+Merrimac,Pentucket
+Halifax,Silver Lake
