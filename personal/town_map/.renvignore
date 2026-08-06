@@ -1,5 +1,12 @@
-^data/google_maps_data\.R$
-^preprocessing\.R$
-^town_map_files/
-^docs/
-^data/old/
+data/google_maps_data.R
+preprocessing.R
+town_map_files/
+docs/
+data/old/
+old/
+libraries.R
+mbta.R
+osmr1.R
+osmr2.R
+pop_density.R
+pull_town_prices.R
