@@ -42,14 +42,14 @@ ui <- fluidPage(
 ")),
     # --- add this style (optional spacing & button look to match MapLibre) ---
     tags$style(HTML("
-  .custom-tip-ctrl { margin-top: 4px; position: relative; }   /* space under nav control */
+  .custom-tip-ctrl { margin-top: 4px; position: relative; }
   .custom-tip-ctrl button {
     width: 28px; height: 28px; background:#fff; border:0; cursor:pointer;
   }
   .custom-tip-ctrl button:hover { background:#f0f0f0; }
   .custom-tip-ctrl .info-panel {
     display: none;
-    position: absolute; top: 32px; left: 0;
+    position: absolute; top: 32px; right: 0;
     width: 220px;
     background: #fff;
     border-radius: 8px;
@@ -131,8 +131,8 @@ ui <- fluidPage(
     var root = document.getElementById(id);
     if (!root) return;
 
-    // MapLibre's top-left control corner (same one that holds zoom/compass)
-    var corner = root.querySelector('.maplibregl-ctrl-top-left');
+    // MapLibre's top-right control corner
+    var corner = root.querySelector('.maplibregl-ctrl-top-right');
     if (!corner) return;
 
     // Avoid duplicates if hot-reloading
