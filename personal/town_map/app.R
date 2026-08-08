@@ -211,6 +211,13 @@ ui <- fluidPage(
       if (layersReady) return true;
       try {
         if (!map.getSource('ruler-line')) {
+          // Road route sits underneath the straight-line reference.
+          map.addSource('ruler-route', { type: 'geojson', data: emptyFC });
+          map.addLayer({
+            id: 'ruler-route-layer', type: 'line', source: 'ruler-route',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': '#0B8043', 'line-width': 5, 'line-opacity': 0.85 }
+          });
           map.addSource('ruler-line', { type: 'geojson', data: emptyFC });
           map.addLayer({
             id: 'ruler-line-layer', type: 'line', source: 'ruler-line',
@@ -243,12 +250,16 @@ ui <- fluidPage(
     var measuring = false;
     var pointA = null;
     var distancePopup = null;
+    var straightLabel = '';
+    var routeToken = 0; // guards against a stale OSRM reply landing on a new measurement
 
     function clearRuler() {
       if (ensureLayers()) {
         map.getSource('ruler-line').setData(emptyFC);
         map.getSource('ruler-points').setData(emptyFC);
+        map.getSource('ruler-route').setData(emptyFC);
       }
+      routeToken++; // invalidate any in-flight driving lookup
       if (distancePopup) {
         distancePopup.remove();
         distancePopup = null;
@@ -260,6 +271,11 @@ ui <- fluidPage(
       measuring = active;
       map.getCanvas().style.cursor = active ? 'crosshair' : '';
       btn.classList.toggle('active', active);
+    }
+
+    function popupHtml(primary, secondary) {
+      return '<div style=\"font-weight:600;font-size:13px;\">' + primary + '</div>' +
+             '<div style=\"font-size:11.3px;color:#667380;margin-top:2px;\">' + secondary + '</div>';
     }
 
     function placeA(lngLat) {
@@ -289,6 +305,7 @@ ui <- fluidPage(
         ]
       });
 
+      straightLabel = label;
       if (distancePopup) distancePopup.remove();
       distancePopup = new maplibregl.Popup({
         closeButton: false,
@@ -296,13 +313,53 @@ ui <- fluidPage(
         anchor: 'top' // label hangs below the point, i.e. underneath the line
       })
         .setLngLat(mid.geometry.coordinates)
-        .setHTML('<div style=\"font-weight:600;font-size:13px;\">' + label + '</div>')
+        .setHTML(popupHtml(label, 'Driving: calculating…'))
         .addTo(map);
+
+      // Ask R for the driving route (OSRM). The straight-line number is
+      // already on screen, so this only ever upgrades the label.
+      if (window.Shiny && Shiny.setInputValue) {
+        routeToken++;
+        Shiny.setInputValue('ruler_ab', {
+          ax: pointA[0], ay: pointA[1],
+          bx: lngLat[0], by: lngLat[1],
+          token: routeToken
+        }, { priority: 'event' });
+      }
 
       // Done after exactly two points; further clicks are ignored until
       // the tool is armed again via the button.
       setActive(false);
     }
+
+    Shiny.addCustomMessageHandler('ruler-route', function (msg) {
+      if (!distancePopup) return;
+      if (msg.token !== routeToken) return; // superseded by a newer measurement
+
+      if (!msg.ok) {
+        distancePopup.setHTML(popupHtml(straightLabel, 'Driving route unavailable'));
+        return;
+      }
+
+      var driveLabel = msg.miles < 0.1
+        ? Math.round(msg.miles * 5280) + ' ft driving'
+        : msg.miles.toFixed(2) + ' mi driving';
+      var mins = Math.round(msg.minutes);
+      var timeLabel = mins >= 60
+        ? Math.floor(mins / 60) + ' hr ' + (mins % 60) + ' min'
+        : mins + ' min';
+
+      distancePopup.setHTML(
+        popupHtml(driveLabel, timeLabel + ' · ' + straightLabel + ' straight-line')
+      );
+
+      if (ensureLayers() && msg.coords && msg.coords.length > 1) {
+        map.getSource('ruler-route').setData({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: msg.coords }
+        });
+      }
+    });
 
     map.on('click', function (e) {
       if (!measuring) return;
@@ -591,6 +648,50 @@ server <- function(input, output, session) {
         finally = searching(FALSE)
       )
     }, once = TRUE)
+  })
+
+  # Driving distance for the ruler tool, via the public OSRM demo server
+  # (no API key). The client has already drawn the straight-line figure, so a
+  # slow or failed lookup only means the label never upgrades.
+  observeEvent(input$ruler_ab, {
+    ab <- input$ruler_ab
+    if (is.null(ab)) {
+      return(invisible(NULL))
+    }
+
+    route <- try(
+      osrm::osrmRoute(
+        src = c(ab$ax, ab$ay),
+        dst = c(ab$bx, ab$by),
+        overview = "full"
+      ),
+      silent = TRUE
+    )
+
+    if (inherits(route, "try-error") || is.null(route) || nrow(route) == 0) {
+      session$sendCustomMessage("ruler-route", list(ok = FALSE, token = ab$token))
+      return(invisible(NULL))
+    }
+
+    # Thin the drawn path — a full OSRM route runs to well over a thousand
+    # vertices. dTolerance is in metres here (s2 is on), and 5 m keeps the
+    # road shape while cutting the payload ~10x. The reported mileage comes
+    # from OSRM's own distance field, so this never affects the number shown.
+    route_geom <- try(
+      suppressWarnings(st_simplify(route, dTolerance = 5)),
+      silent = TRUE
+    )
+    if (inherits(route_geom, "try-error")) route_geom <- route
+
+    m <- unname(st_coordinates(route_geom)[, 1:2, drop = FALSE])
+
+    session$sendCustomMessage("ruler-route", list(
+      ok = TRUE,
+      token = ab$token,
+      miles = as.numeric(route$distance[1]) * 0.621371,
+      minutes = as.numeric(route$duration[1]),
+      coords = lapply(seq_len(nrow(m)), function(i) unname(m[i, ]))
+    ))
   })
 
   observeEvent(input$reset_view, {
