@@ -9,13 +9,16 @@ ma_counties <- tidycensus::fips_codes %>%
   distinct(county) %>%
   pull()
 
+# Latest ACS 5-year: year Y's release lands around December of Y+1
+acs_year <- as.integer(format(Sys.Date(), "%Y")) - 2
+
 # 1) Pull total population for county subdivisions (= towns & cities) + geometry
-mcd <- get_acs(
+mcd <- tidycensus::get_acs(
   geography = "county subdivision",   # <-- this is the key change
   variables = "B01003_001",           # total population
   state = "MA",
   county = ma_counties,               # all counties in MA
-  year = 2023,
+  year = acs_year,
   geometry = TRUE
 )
 

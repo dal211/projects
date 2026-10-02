@@ -11,7 +11,9 @@ library(glue)
 library(httr)
 library(jsonlite)
 
-# ---- Data Preparation ----n# Ensure caching of tigris shapes\options(tigris_use_cache = TRUE)
+# ---- Data Preparation ----
+# Ensure caching of tigris shapes
+options(tigris_use_cache = TRUE)
 
 pop_density <- readRDS("data/pop_density.rds")
 pop_density <- as_tibble(pop_density)
@@ -120,15 +122,36 @@ sat_scores <- httr::GET(
   )
 
 # College enrollment outcomes (immediate fall enrollment, latest grad cohort)
-college_outcomes <- read_csv("data/College_and_Career_Outcomes_of_High_School_Graduates_20250525.csv") %>%
-  filter(
-    OUTCOME_TYPE == "Total Postsecondary Enrollment",
-    OUTCOME_YEAR == HS_GRAD_YEAR,
-    HS_GRAD_YEAR == max(HS_GRAD_YEAR)
-  ) %>%
+# DART reports by school, so sum graduates and enrollees up to the district
+college_endpoint <- "https://educationtocareer.data.mass.gov/resource/adqe-6sht.json"
+college_indicator <- "Students enrolled in postsecondary education in the immediate fall after high school graduation"
+
+latest_college_sy <- httr::GET(
+  college_endpoint,
+  query = list(
+    `$select` = "max(sy) as max_sy",
+    `$where`  = glue::glue("indicator='{college_indicator}'")
+  )
+) %>%
+  httr::content(as = "text", encoding = "UTF-8") %>%
+  jsonlite::fromJSON() %>%
+  pull(max_sy)
+
+college_outcomes <- httr::GET(
+  college_endpoint,
+  query = list(
+    `$select` = "dist_code,sum(stu_cnt) as enrolled,sum(stu_incl) as grads",
+    `$where`  = glue::glue("indicator='{college_indicator}' AND stu_grp='All Students' AND sy='{latest_college_sy}' AND dist_code!='00000000'"),
+    `$group`  = "dist_code",
+    `$limit`  = 50000
+  )
+) %>%
+  httr::content(as = "text", encoding = "UTF-8") %>%
+  jsonlite::fromJSON() %>%
+  as_tibble() %>%
   transmute(
-    DIST_CODE = sprintf("%08d", as.numeric(DIST_CODE)),
-    college_bound_rate = OUTCOME_CNT / GRAD_CNT
+    DIST_CODE = dist_code,
+    college_bound_rate = as.numeric(enrolled) / as.numeric(grads)
   )
 
 # School district crosswalk
@@ -141,17 +164,31 @@ town_school_dist_xwalk <- read_csv("data/final_school_districts_mapping_v1.csv")
 # Zillow three-bedroom price change
 price_town_mapping <- as.data.frame(readr::read_csv("data/price_town_mapping.csv", lazy = FALSE, show_col_types = FALSE))
 
-three_bed_home_price_zil <- readr::read_csv("data/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv") %>%
+# Zillow updates this file monthly; latest month vs. same month a year earlier
+zillow_url <- "https://files.zillowstatic.com/research/public_csvs/zhvi/City_zhvi_bdrmcnt_3_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+
+three_bed_home_price_zil <- readr::read_csv(zillow_url, show_col_types = FALSE) %>%
   filter(State == "MA") %>%
-  select(RegionName, last_col(offset = 12), last_col()) %>%
-  mutate(one_year_price_change = round((`3/31/2025` - `3/31/2024`) / `3/31/2024` * 100, 1)) %>%
-  rename(
-    current_typ_home_value = `3/31/2025`,
-    lst_yr_typ_home_value = `3/31/2024`
-  )
+  select(RegionName, lst_yr_typ_home_value = last_col(offset = 12), current_typ_home_value = last_col()) %>%
+  mutate(one_year_price_change = round((current_typ_home_value - lst_yr_typ_home_value) / lst_yr_typ_home_value * 100, 1))
 
 # Add property tax rates
-prop_tax_rates <- read_xlsx("data/taxratesbyclass.xlsx") %>%
+# MA DLS "Tax Rates by Class" Excel export; towns set rates through the fiscal
+# year (starts July 1), so pull the last 5 FYs and keep each town's latest rate
+dls_tax_url <- "https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?rdReport=PropertyTaxInformation.taxratesbyclass.taxratesbyclass&rdReportFormat=NativeExcel&rdExportTableID=tbl_taxratesbyclass&rdExcelOutputFormat=Excel2007"
+current_fy <- as.integer(format(Sys.Date() + 184, "%Y"))
+tax_xlsx <- tempfile(fileext = ".xlsx")
+
+invisible(httr::POST(
+  dls_tax_url,
+  body = setNames(as.list(current_fy - 0:4), rep("iclYear", 5)),
+  encode = "form",
+  httr::write_disk(tax_xlsx, overwrite = TRUE)
+))
+
+prop_tax_rates <- read_xlsx(tax_xlsx) %>%
+  filter(Residential > 0) %>%
+  slice_max(`Fiscal Year`, by = Municipality) %>%
   mutate(
     prop_rate = Residential / 1000
   ) %>%
