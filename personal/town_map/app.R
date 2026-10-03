@@ -41,6 +41,93 @@ settings_icon <- HTML(paste0(
   'a1.65 1.65 0 0 0-1.51 1z"/></svg>'
 ))
 
+# ---- About tab (methodology) ----
+# Keep in sync with 01_pop_density.R / 02_preprocessing.R if the methods change
+src_link <- function(label, href, ...) tags$a(href = href, target = "_blank", rel = "noopener", label, ...)
+
+about_ui <- function() {
+  tagList(
+    tags$section(
+      class = "box about",
+      tags$h4("Finding a town to settle down"),
+      tags$p(
+        "Built for those deciding where to settle down in Massachusetts"
+      ),
+      tags$p(
+        tags$b("Schools come first."),
+        " They matter if you have or plan to have kids, and strong schools tend to go with",
+        " nice neighborhoods, good amenities and lower crime. Treat them as a signal, not a guarantee."
+      ),
+      tags$p(class = "about-sub", "How to use it"),
+      tags$ol(
+        tags$li("Shortlist towns with strong schools (shaded green or purple)."),
+        tags$li("Check the commute: commuter rail lines, or the ruler for driving time."),
+        tags$li(
+          "Check home prices and taxes in the town's details, then search listings on ",
+          src_link("Redfin", redfin_url, .noWS = "after"), "."
+        )
+      ),
+      tags$div(
+        class = "about-legend",
+        tags$div(tags$span(class = "set-swatch tier1"), tags$b("Tier 1"), " school score 70+"),
+        tags$div(tags$span(class = "set-swatch tier2"), tags$b("Tier 2"), " school score 50–69"),
+        tags$div(tags$span(class = "about-line"), "Commuter rail lines and stations")
+      )
+    ),
+    tags$section(
+      class = "box about",
+      tags$h4("School score"),
+      tags$p(
+        "The average of three rankings for the town's public school district. Each one ranks",
+        " the district against every Massachusetts town from 0 to 100:"
+      ),
+      tags$ul(
+        tags$li(tags$b("MCAS:"), " grade 10 average scaled score across subjects"),
+        tags$li(tags$b("AP:"), " share of AP exams scored 3 or higher"),
+        tags$li(tags$b("SAT:"), " average reading/writing + math score")
+      ),
+      tags$p(
+        class = "about-note",
+        "Scores are relative, not absolute: 70 means better than about 70% of towns. Towns in a",
+        " regional district share its score. Towns with missing test data have no score."
+      )
+    ),
+    tags$section(
+      class = "box about",
+      tags$h4("Other numbers"),
+      tags$dl(
+        tags$dt("Typical 3-bed home"),
+        tags$dd("Zillow Home Value Index for 3-bedroom homes (middle third of the market), latest month. The change compares it with the same month a year earlier."),
+        tags$dt("Property tax rate"),
+        tags$dd("Residential tax rate for the latest fiscal year each town has set, shown as a percent of assessed value."),
+        tags$dt("College-bound"),
+        tags$dd("Share of the district's high school graduates enrolled in college the fall after graduating."),
+        tags$dt("High school size"),
+        tags$dd("An estimate: the district's grade 10 MCAS test-takers × 4."),
+        tags$dt("Density"),
+        tags$dd("Population ÷ town area. Rural under 200 people/sq mi, sparse suburban 200–499, mid-dense 500–999, dense suburb 1,000–3,000, urban city over 3,000.")
+      )
+    ),
+    tags$section(
+      class = "box about",
+      tags$h4("Sources"),
+      tags$ul(
+        class = "about-sources",
+        tags$li(src_link("MA DESE Education-to-Career data hub", "https://educationtocareer.data.mass.gov/"), " (MCAS, AP, SAT, college enrollment)"),
+        tags$li(src_link("Zillow Research", "https://www.zillow.com/research/data/"), " (home values)"),
+        tags$li(src_link("MA Division of Local Services", "https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?rdReport=PropertyTaxInformation.taxratesbyclass.taxratesbyclass_main"), " (tax rates)"),
+        tags$li(src_link("U.S. Census ACS 5-year", "https://data.census.gov/"), " (population)"),
+        tags$li(src_link("MBTA GTFS", "https://www.mbta.com/developers/gtfs"), " (commuter rail)"),
+        tags$li(src_link("OSRM", "https://project-osrm.org/"), " (driving distances for the ruler)")
+      ),
+      tags$p(class = "about-note", "Each source is pulled at its latest available release whenever the data is rebuilt.")
+    )
+  )
+}
+
+explore_icon <- HTML('<svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>')
+about_icon <- HTML('<svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>')
+
 # ---- UI ----
 # Serve www/ explicitly: Shiny only does this automatically for runApp(<dir>),
 # not when app.R is sourced (e.g. Positron's Run App button)
@@ -78,7 +165,7 @@ ui <- bootstrapPage(
       ),
       tags$button(id = "expand-tab", class = "expand-tab", type = "button", title = "Show panel", HTML("&rsaquo;")),
       tags$aside(
-        id = "panel", class = "panel",
+        id = "panel", class = "panel", `data-view` = "explore",
         tags$div(id = "grip", class = "grip", tags$span()),
         tags$header(
           id = "phead", class = "p-head",
@@ -90,7 +177,7 @@ ui <- bootstrapPage(
           tags$button(id = "collapse-btn", class = "head-btn collapse-btn", type = "button", title = "Hide panel", HTML("&lsaquo;"))
         ),
         tags$div(
-          id = "pbody", class = "p-body",
+          id = "pbody", class = "p-body", `data-view` = "explore",
           uiOutput("town_card", class = "box"),
           tags$section(
             class = "box",
@@ -112,6 +199,19 @@ ui <- bootstrapPage(
             tags$p(class = "hint", "Tap a town on the map to see its details here.")
           )
         ),
+        tags$div(id = "about-view", class = "p-body", `data-view` = "about", about_ui()),
+        # Explore / About switch (styled like the MBTA app's tab bar)
+        tags$nav(
+          id = "tabbar", class = "tabbar", role = "tablist",
+          tags$button(
+            type = "button", role = "tab", class = "active", `aria-selected` = "true", `data-tab` = "explore",
+            explore_icon, tags$span("Explore")
+          ),
+          tags$button(
+            type = "button", role = "tab", `aria-selected` = "false", `data-tab` = "about",
+            about_icon, tags$span("About")
+          )
+        ),
         # Map credits, copied in from the map's attribution by layout.js
         tags$footer(id = "map-credit", class = "p-foot")
       ),
@@ -125,18 +225,24 @@ ui <- bootstrapPage(
           tags$button(type = "button", `data-theme-choice` = "light", "Light"),
           tags$button(type = "button", `data-theme-choice` = "dark", "Dark")
         ),
-        tags$div(class = "set-label set-gap", "School tiers on map"),
+        tags$div(class = "set-label set-gap", "Map layers"),
         tags$label(
           class = "set-toggle",
           tags$span(class = "set-swatch tier1"),
-          tags$span(class = "set-text", tags$b("Tier 1"), tags$small("above 70th percentile")),
+          tags$span(class = "set-text", tags$b("Tier 1 schools"), tags$small("score 70+")),
           tags$input(type = "checkbox", `data-tier` = "1", checked = NA)
         ),
         tags$label(
           class = "set-toggle",
           tags$span(class = "set-swatch tier2"),
-          tags$span(class = "set-text", tags$b("Tier 2"), tags$small("50–69th percentile")),
+          tags$span(class = "set-text", tags$b("Tier 2 schools"), tags$small("score 50–69")),
           tags$input(type = "checkbox", `data-tier` = "2", checked = NA)
+        ),
+        tags$label(
+          class = "set-toggle",
+          tags$span(class = "set-swatch rail"),
+          tags$span(class = "set-text", tags$b("Commuter rail"), tags$small("MBTA lines and stations")),
+          tags$input(type = "checkbox", `data-layer` = "rail", checked = NA)
         )
       ),
       tags$div(id = "toast")
@@ -326,7 +432,7 @@ server <- function(input, output, session) {
   # layout.js sends input$theme once the map has loaded and on every toggle.
   # set_style() keeps the town, rail and ruler layers across the swap; layout.js
   # re-tints the town fills once the new style has loaded.
-  map_theme <- "light"
+  map_theme <- "light" # matches style_key above
   observeEvent(input$theme, {
     theme <- if (identical(input$theme, "light")) "light" else "dark"
     if (identical(theme, map_theme)) {

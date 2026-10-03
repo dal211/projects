@@ -226,6 +226,7 @@ a:hover, a:focus { color: inherit; }
 .set-swatch { width: 14px; height: 14px; border-radius: 4px; flex: none; }
 .set-swatch.tier1 { background: var(--green); }
 .set-swatch.tier2 { background: var(--purple); }
+.set-swatch.rail { height: 0; border-radius: 0; border-top: 3px solid #C264D6; }
 .set-text { flex: 1; display: flex; flex-direction: column; line-height: 1.25; }
 .set-text b { font-size: 13.5px; font-weight: 600; }
 .set-text small { font-size: 11.5px; color: var(--muted); }
@@ -266,6 +267,35 @@ a:hover, a:focus { color: inherit; }
 .panel .btn:hover, .panel .btn:focus { background: var(--btn-hover); color: var(--text); }
 .panel .btn.btn-primary { background: var(--accent); color: #fff; }
 .panel .btn.btn-primary:hover, .panel .btn.btn-primary:focus { background: var(--accent-hover); color: #fff; }
+/* ---------- Explore / About views and tab bar ---------- */
+.panel[data-view="explore"] .p-body[data-view="about"],
+.panel[data-view="about"] .p-body[data-view="explore"] { display: none; }
+.tabbar { flex: none; display: flex; gap: 4px; margin: 4px 14px 10px; padding: 4px; border-radius: 99px;
+  background: var(--btn-soft); }
+.tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 0;
+  border-radius: 99px; padding: 6px 8px 5px; background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 12px; font-weight: 600; }
+.tabbar button:hover { color: var(--text); }
+.tabbar button.active { background: var(--panel); color: var(--accent); box-shadow: 0 1px 4px var(--shadow); }
+.tabbar svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.about p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; }
+.about p:last-child { margin-bottom: 0; }
+.about ul, .about ol { margin: 0 0 8px; padding-left: 18px; font-size: 13.5px; line-height: 1.5; }
+.about .about-sub { margin: 10px 0 4px; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.about li { margin-bottom: 3px; }
+.about .about-note { color: var(--muted); font-size: 12.5px; }
+.about dl { margin: 0; font-size: 13px; line-height: 1.45; }
+.about dt { font-weight: 600; margin-top: 10px; }
+.about dt:first-child { margin-top: 0; }
+.about dd { margin: 2px 0 0; color: var(--muted); }
+.about a { color: var(--accent); text-decoration: none; }
+.about a:hover { color: var(--accent); text-decoration: underline; }
+.about-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 13px; }
+.about-legend > div { display: flex; align-items: center; gap: 8px; }
+.about-legend b { font-weight: 600; }
+.about-line { width: 14px; height: 0; border-top: 3px solid #C264D6; flex: none; }
+
 .p-foot { flex: none; padding: 8px 18px 10px; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.4; color: var(--foot); }
 .p-foot:empty { display: none; }
 .p-foot a { color: inherit; text-decoration: none; }

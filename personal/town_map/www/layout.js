@@ -78,6 +78,7 @@
     if (!map || !map.getLayer('towns')) return;
     Object.keys(TOWN_PAINT[theme]).forEach(function (k) { map.setPaintProperty('towns', k, TOWN_PAINT[theme][k]); });
     applyTiers();
+    applyRail();
   }
 
   // ---------- school tier fills (settings menu) ----------
@@ -107,6 +108,26 @@
     state.tiers[tier] = on;
     try { localStorage.setItem(TIER_KEY, JSON.stringify(state.tiers)); } catch (e) {}
     applyTiers();
+  }
+
+  // ---------- commuter rail layer (settings menu) ----------
+  var RAIL_KEY = 'townmap-rail';
+  var RAIL_LAYERS = ['commuter', 'commuter_stations'];
+  state.rail = (function () {
+    try { return localStorage.getItem(RAIL_KEY) !== 'off'; } catch (e) { return true; }
+  })();
+
+  function applyRail() {
+    if (!map) return;
+    RAIL_LAYERS.forEach(function (id) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', state.rail ? 'visible' : 'none');
+    });
+  }
+
+  function setRail(on) {
+    state.rail = on;
+    try { localStorage.setItem(RAIL_KEY, on ? 'on' : 'off'); } catch (e) {}
+    applyRail();
   }
 
   function sendTheme() {
@@ -151,9 +172,12 @@
   // ---------- layout state ----------
   function sheetHeights() {
     var h = $('#stage').clientHeight;
-    // Collapsed = just the handle, title and credits footer
-    var peek = ['#grip', '#phead', '#map-credit'].reduce(function (sum, s) {
-      var el = $(s); return sum + (el ? el.offsetHeight : 0);
+    // Collapsed = just the handle, title, Explore/About tabs and credits footer
+    var peek = ['#grip', '#phead', '#tabbar', '#map-credit'].reduce(function (sum, s) {
+      var el = $(s);
+      if (!el) return sum;
+      var cs = getComputedStyle(el);
+      return sum + el.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
     }, 0);
     return { collapsed: Math.max(peek, 72), half: Math.round(h * 0.5), full: Math.round(h * 0.92) };
   }
@@ -166,6 +190,20 @@
     p.style.transition = instant ? 'none' : 'height .3s cubic-bezier(.2,.8,.2,1)';
     p.style.height = sheetHeights()[snap] + 'px';
     p.classList.toggle('is-collapsed', snap === 'collapsed'); // hides the body so nothing peeks
+  }
+
+  // Explore (town picker + details) or About (methodology)
+  function setView(view) {
+    var p = $('#panel');
+    if (!p || p.getAttribute('data-view') === view) return;
+    p.setAttribute('data-view', view);
+    document.querySelectorAll('#tabbar [data-tab]').forEach(function (b) {
+      var on = b.getAttribute('data-tab') === view;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    var body = view === 'about' ? $('#about-view') : $('#pbody');
+    if (body) body.scrollTop = 0;
   }
 
   function setPanel(open) {
@@ -285,10 +323,23 @@
       cb.checked = state.tiers[tier];
       cb.addEventListener('change', function () { setTier(tier, cb.checked); });
     });
+    var railCb = $('input[data-layer="rail"]');
+    if (railCb) {
+      railCb.checked = state.rail;
+      railCb.addEventListener('change', function () { setRail(railCb.checked); });
+    }
     document.addEventListener('click', function () { setSettingsOpen(false); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setSettingsOpen(false); });
     $('#expand-tab').addEventListener('click', function () { setPanel(true); });
+    document.querySelectorAll('#tabbar [data-tab]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        setView(b.getAttribute('data-tab'));
+        // On a collapsed mobile sheet, open it so the chosen view is visible
+        if (state.mode === 'mobile' && state.sheet === 'collapsed') setSheet('half');
+      });
+    });
     $('#m-search').addEventListener('click', function () {
+      setView('explore');
       setSheet('full');
       setTimeout(function () { var a = $('#addr_query'); if (a) a.focus(); }, 320);
     });
@@ -306,7 +357,7 @@
 
   // Fit the map to a bbox [x0, y0, x1, y1], opening the panel/sheet first if asked
   Shiny.addCustomMessageHandler('focus', function (msg) {
-    if (msg.panel) setPanel(true);
+    if (msg.panel) { setPanel(true); setView('explore'); } // a town was picked: show its card
     if (msg.sheet) setSheet(msg.sheet, msg.instant);
     if (!map) return;
     var b = msg.bbox;
@@ -373,7 +424,7 @@
     // Tell the server the theme once the map (and mapgl's layers) have loaded,
     // so set_style() has layers to carry over to the new basemap
     // (also applies any saved tier choices now that the towns layer exists)
-    function onMapLoaded() { applyTiers(); sendTheme(); }
+    function onMapLoaded() { applyTiers(); applyRail(); sendTheme(); }
     if (map.loaded()) setTimeout(onMapLoaded, 0); else map.once('idle', onMapLoaded);
 
     // Locate me. The position stays in the browser; nothing is sent to Shiny.
