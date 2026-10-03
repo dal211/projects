@@ -221,6 +221,22 @@ a:hover, a:focus { color: inherit; }
   background: transparent; color: var(--muted); cursor: pointer; }
 .seg button:hover { color: var(--text); }
 .seg button.active { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px var(--shadow); }
+.set-gap { margin-top: 14px; }
+.set-toggle { display: flex; align-items: center; gap: 10px; padding: 6px 2px; margin: 0; cursor: pointer; font-weight: normal; }
+.set-swatch { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+.set-swatch.tier1 { background: var(--green); }
+.set-swatch.tier2 { background: var(--purple); }
+.set-text { flex: 1; display: flex; flex-direction: column; line-height: 1.25; }
+.set-text b { font-size: 13.5px; font-weight: 600; }
+.set-text small { font-size: 11.5px; color: var(--muted); }
+/* checkbox drawn as a switch */
+.set-toggle input { appearance: none; -webkit-appearance: none; flex: none; width: 36px; height: 20px; margin: 0;
+  border-radius: 99px; background: var(--btn); position: relative; cursor: pointer; transition: background .2s; }
+.set-toggle input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .2s; }
+.set-toggle input:checked { background: var(--accent); }
+.set-toggle input:checked::after { transform: translateX(16px); }
+.set-toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .expand-tab { display: none; position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 19;
   width: 24px; height: 64px; border: 0; border-radius: 0 12px 12px 0; background: var(--panel); color: var(--text);
   cursor: pointer; font-size: 18px; padding: 0; box-shadow: 0 4px 14px var(--shadow); }

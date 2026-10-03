@@ -124,6 +124,19 @@ ui <- bootstrapPage(
           class = "seg", role = "group",
           tags$button(type = "button", `data-theme-choice` = "light", "Light"),
           tags$button(type = "button", `data-theme-choice` = "dark", "Dark")
+        ),
+        tags$div(class = "set-label set-gap", "School tiers on map"),
+        tags$label(
+          class = "set-toggle",
+          tags$span(class = "set-swatch tier1"),
+          tags$span(class = "set-text", tags$b("Tier 1"), tags$small("above 70th percentile")),
+          tags$input(type = "checkbox", `data-tier` = "1", checked = NA)
+        ),
+        tags$label(
+          class = "set-toggle",
+          tags$span(class = "set-swatch tier2"),
+          tags$span(class = "set-text", tags$b("Tier 2"), tags$small("50–69th percentile")),
+          tags$input(type = "checkbox", `data-tier` = "2", checked = NA)
         )
       ),
       tags$div(id = "toast")

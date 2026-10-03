@@ -77,6 +77,36 @@
   function tintTowns(theme) {
     if (!map || !map.getLayer('towns')) return;
     Object.keys(TOWN_PAINT[theme]).forEach(function (k) { map.setPaintProperty('towns', k, TOWN_PAINT[theme][k]); });
+    applyTiers();
+  }
+
+  // ---------- school tier fills (settings menu) ----------
+  // A hidden tier's towns get a transparent fill: outlines stay and the towns
+  // can still be clicked for their details. Choice is remembered per browser.
+  var TIER_KEY = 'townmap-tiers';
+  var TIER_COLOR = { 1: '#009688', 2: '#AB47BC' }; // the fill_color values set in 02_preprocessing.R
+  state.tiers = (function () {
+    var t = { 1: true, 2: true };
+    try {
+      var saved = JSON.parse(localStorage.getItem(TIER_KEY) || 'null');
+      if (saved) { t[1] = saved[1] !== false; t[2] = saved[2] !== false; }
+    } catch (e) {}
+    return t;
+  })();
+
+  function applyTiers() {
+    if (!map || !map.getLayer('towns')) return;
+    map.setPaintProperty('towns', 'fill-color', ['case',
+      ['==', ['get', 'fill_color'], TIER_COLOR[1]], state.tiers[1] ? TIER_COLOR[1] : 'rgba(0,0,0,0)',
+      ['==', ['get', 'fill_color'], TIER_COLOR[2]], state.tiers[2] ? TIER_COLOR[2] : 'rgba(0,0,0,0)',
+      ['get', 'fill_color']
+    ]);
+  }
+
+  function setTier(tier, on) {
+    state.tiers[tier] = on;
+    try { localStorage.setItem(TIER_KEY, JSON.stringify(state.tiers)); } catch (e) {}
+    applyTiers();
   }
 
   function sendTheme() {
@@ -250,6 +280,11 @@
     document.querySelectorAll('[data-theme-choice]').forEach(function (b) {
       b.addEventListener('click', function () { setTheme(b.getAttribute('data-theme-choice')); });
     });
+    document.querySelectorAll('input[data-tier]').forEach(function (cb) {
+      var tier = cb.getAttribute('data-tier');
+      cb.checked = state.tiers[tier];
+      cb.addEventListener('change', function () { setTier(tier, cb.checked); });
+    });
     document.addEventListener('click', function () { setSettingsOpen(false); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setSettingsOpen(false); });
     $('#expand-tab').addEventListener('click', function () { setPanel(true); });
@@ -337,7 +372,9 @@
 
     // Tell the server the theme once the map (and mapgl's layers) have loaded,
     // so set_style() has layers to carry over to the new basemap
-    if (map.loaded()) setTimeout(sendTheme, 0); else map.once('idle', sendTheme);
+    // (also applies any saved tier choices now that the towns layer exists)
+    function onMapLoaded() { applyTiers(); sendTheme(); }
+    if (map.loaded()) setTimeout(onMapLoaded, 0); else map.once('idle', onMapLoaded);
 
     // Locate me. The position stays in the browser; nothing is sent to Shiny.
     var geo = new maplibregl.GeolocateControl({
