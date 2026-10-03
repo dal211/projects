@@ -234,6 +234,12 @@ ui <- bootstrapPage(
           tags$button(type = "button", `data-theme-choice` = "light", "Light"),
           tags$button(type = "button", `data-theme-choice` = "dark", "Dark")
         ),
+        tags$div(class = "set-label set-gap", "Layout"),
+        tags$div(
+          class = "seg", role = "group",
+          tags$button(type = "button", `data-mode-choice` = "web", "Desktop"),
+          tags$button(type = "button", `data-mode-choice` = "mobile", "Mobile")
+        ),
         tags$div(class = "set-label set-gap", "School shading on map"),
         tags$label(
           class = "set-toggle",
@@ -693,8 +699,8 @@ server <- function(input, output, session) {
     focus_map(full_bbox, sheet = "collapsed")
   })
 
-  # Custom controls are appended in this order under the zoom/compass group:
-  # layout toggle + locate-me, ruler, info
+  # Custom controls under the zoom/compass group: locate-me, ruler, then
+  # transit and the legend (kept last by CSS `order`)
   session$onFlushed(function() {
     session$sendCustomMessage("attach-layout", "townMap")
     session$sendCustomMessage("attach-distance-tool", "townMap")

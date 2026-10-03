@@ -12,11 +12,9 @@
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
   var ICONS = {
-    phone: '<svg class="ctrl-svg" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
-    desktop: '<svg class="ctrl-svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
     ruler: '<svg class="ctrl-svg" viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7.5 12.5l2 2M10.5 9.5l2 2M13.5 6.5l2 2"/></svg>',
-    info: '<svg class="ctrl-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6"/></svg>',
-    train: '<svg class="ctrl-svg" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M9 21l2-4M15 21l-2-4"/><circle cx="9" cy="14" r=".7"/><circle cx="15" cy="14" r=".7"/></svg>'
+    legend: '<svg class="ctrl-svg" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="4" height="4" rx="1"/><rect x="3.5" y="15.5" width="4" height="4" rx="1"/><path d="M11 6.5h9.5M11 17.5h9.5"/></svg>',
+    train:'<svg class="ctrl-svg" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M9 21l2-4M15 21l-2-4"/><circle cx="9" cy="14" r=".7"/><circle cx="15" cy="14" r=".7"/></svg>'
   };
 
   // ---------- light / dark theme ----------
@@ -84,14 +82,6 @@
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
     if (open) placeTransit();
-  }
-  // Number of transit layers currently showing, as a badge on the button
-  function updateTransitBadge() {
-    var badge = $('#transit-badge');
-    if (!badge || !state.transit) return;
-    var n = (state.transit.rail ? 1 : 0) + TLINE_NAMES.filter(function (x) { return state.tlines[x]; }).length;
-    badge.textContent = n;
-    badge.style.display = n ? '' : 'none';
   }
 
   // Keep the loading overlay up until the basemap matches the theme, so a
@@ -189,7 +179,6 @@
     state.tlines[name] = on;
     try { localStorage.setItem(TLINES_KEY, JSON.stringify(state.tlines)); } catch (e) {}
     applyTLines();
-    updateTransitBadge();
   }
 
   function applyTransit() {
@@ -206,7 +195,6 @@
     state.transit[name] = on;
     try { localStorage.setItem(TRANSIT[name].key, on ? 'on' : 'off'); } catch (e) {}
     applyTransit();
-    updateTransitBadge();
   }
 
   function sendTheme() {
@@ -267,8 +255,7 @@
     if (state.mode !== 'mobile') return;
     var p = $('#panel');
     p.style.transition = instant ? 'none' : 'height .3s cubic-bezier(.2,.8,.2,1)';
-    p.style.height = sheetHeights()[snap] + 'px';
-    p.classList.toggle('is-collapsed', snap === 'collapsed'); // hides the body so nothing peeks
+    p.style.height = sheetHeights()[snap] + 'px';    p.classList.toggle('is-collapsed', snap === 'collapsed'); // hides the body so nothing peeks
   }
 
   // Explore (town picker + details) or About (methodology)
@@ -308,11 +295,11 @@
     p.style.transition = 'none';
     p.style.height = '';
     if (mode === 'mobile') setSheet(state.sheet, true);
-    var btn = $('#mode-toggle-btn');
-    if (btn) {
-      btn.innerHTML = mode === 'web' ? ICONS.phone : ICONS.desktop;
-      btn.title = mode === 'web' ? 'Switch to mobile layout' : 'Switch to web layout';
-    }
+    document.querySelectorAll('[data-mode-choice]').forEach(function (b) {
+      var on = b.getAttribute('data-mode-choice') === mode;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
     resizeMap();
   }
 
@@ -398,6 +385,14 @@
     document.querySelectorAll('[data-theme-choice]').forEach(function (b) {
       b.addEventListener('click', function () { setTheme(b.getAttribute('data-theme-choice')); });
     });
+    document.querySelectorAll('[data-mode-choice]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var mode = b.getAttribute('data-mode-choice');
+        if (mode === state.mode) return;
+        try { localStorage.setItem(MODE_KEY, mode); } catch (err) {}
+        applyMode(mode);
+      });
+    });
     document.querySelectorAll('input[data-tier]').forEach(function (cb) {
       var tier = cb.getAttribute('data-tier');
       cb.checked = state.tiers[tier];
@@ -467,14 +462,14 @@
     setTimeout(function () { state.mapTheme = state.theme; maybeHideOverlay(); }, 8000);
   });
 
-  // Mode toggle, locate-me, town clicks. Runs once the map widget exists.
+  // Transit button, locate-me, town clicks. Runs once the map widget exists.
   Shiny.addCustomMessageHandler('attach-layout', function (id) {
     var root = document.getElementById(id);
     var widget = HTMLWidgets.find('#' + id);
     if (!root || !widget || !widget.getMap()) return;
     map = widget.getMap();
     var corner = root.querySelector('.maplibregl-ctrl-top-right');
-    if (!corner || corner.querySelector('.mode-toggle-ctrl')) return; // avoid dup on hot-reload
+    if (!corner || corner.querySelector('.transit-ctrl')) return; // avoid dup on hot-reload
 
     // Map credits: show the attribution text in the panel footer instead of on
     // the map. The map's own control is hidden by CSS, except as a collapsed
@@ -514,23 +509,6 @@
     });
     tgroup.appendChild(tbtn);
     corner.appendChild(tgroup);
-    updateTransitBadge();
-
-    // Mobile / web toggle
-    var group = document.createElement('div');
-    group.className = 'maplibregl-ctrl maplibregl-ctrl-group mode-toggle-ctrl';
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.id = 'mode-toggle-btn';
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var next = state.mode === 'web' ? 'mobile' : 'web';
-      try { localStorage.setItem(MODE_KEY, next); } catch (err) {}
-      applyMode(next);
-    });
-    group.appendChild(btn);
-    corner.appendChild(group);
-    applyMode(state.mode); // sets the button icon
 
     // Tell the server the theme once the map (and mapgl's layers) have loaded,
     // so set_style() has layers to carry over to the new basemap
@@ -570,34 +548,32 @@
     map.on('mouseleave', 'towns', function () { if (map.getCanvas().style.cursor === 'pointer') map.getCanvas().style.cursor = ''; });
   });
 
-  // Info button with the school-quality legend
+  // School-quality legend, always shown at the end of the control stack
   Shiny.addCustomMessageHandler('attach-tip', function (id) {
     var root = document.getElementById(id);
     if (!root) return;
     var corner = root.querySelector('.maplibregl-ctrl-top-right');
     if (!corner || corner.querySelector('.custom-tip-ctrl')) return;
 
-    var group = document.createElement('div');
-    group.className = 'maplibregl-ctrl maplibregl-ctrl-group custom-tip-ctrl';
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.title = 'Map info & legend';
-    btn.innerHTML = ICONS.info;
-    var panel = document.createElement('div');
-    panel.className = 'info-panel';
-    panel.innerHTML =
-      '<h5>School Quality</h5>' +
+    var legend = document.createElement('div');
+    legend.className = 'maplibregl-ctrl custom-tip-ctrl';
+    legend.innerHTML =
+      '<button type="button" class="legend-head" aria-expanded="true" title="School quality legend"><h5>School Quality</h5><span class="legend-chev">&#9662;</span>' + ICONS.legend + '</button>' +
+      '<div class="legend-body">' +
       '<div class="legend-row"><span class="legend-swatch green"></span>&gt;70th percentile (Tier 1)</div>' +
       '<div class="legend-row"><span class="legend-swatch purple"></span>50&ndash;69th percentile (Tier 2)</div>' +
-      '<div class="tip-text">Tip: Hold Ctrl + drag to tilt &amp; rotate.</div>';
-
-    btn.addEventListener('click', function (e) { e.stopPropagation(); panel.classList.toggle('open'); });
-    document.addEventListener('click', function () { panel.classList.remove('open'); });
-    panel.addEventListener('click', function (e) { e.stopPropagation(); });
-
-    group.appendChild(btn);
-    group.appendChild(panel);
-    corner.appendChild(group);
+      '</div>';
+    // Collapsible; the choice is remembered
+    var LEGEND_KEY = 'townmap-legend';
+    var head = legend.querySelector('.legend-head');
+    function setLegend(open) {
+      legend.classList.toggle('collapsed', !open);
+      head.setAttribute('aria-expanded', open ? 'true' : 'false');
+      try { localStorage.setItem(LEGEND_KEY, open ? 'open' : 'closed'); } catch (e) {}
+    }
+    head.addEventListener('click', function (e) { e.stopPropagation(); setLegend(legend.classList.contains('collapsed')); });
+    try { if (localStorage.getItem(LEGEND_KEY) === 'closed') setLegend(false); } catch (e) {}
+    corner.appendChild(legend);
   });
 
   // Distance-ruler tool: click the button to arm it, click point A, click

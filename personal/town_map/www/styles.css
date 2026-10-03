@@ -145,19 +145,25 @@ a:hover, a:focus { color: inherit; }
 .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib { display: none; }
 .mode-web.panel-closed .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib { display: block; }
 
-/* info / legend panel */
-.custom-tip-ctrl { position: relative; }
-.custom-tip-ctrl .info-panel { display: none; position: absolute; top: 0; right: 48px; width: 236px; z-index: 10;
-  background: var(--card); border: 1px solid var(--ctrl-line); border-radius: 12px; padding: 12px 14px;
-  font-size: 12.5px; color: var(--text); box-shadow: 0 8px 24px var(--shadow); }
-.custom-tip-ctrl .info-panel.open { display: block; }
-.custom-tip-ctrl .info-panel h5 { margin: 0 0 8px; font-size: 12.5px; font-weight: 700; }
+/* school-quality legend (always visible, last in the control stack) */
+.custom-tip-ctrl { order: 100; width: 236px; background: var(--card); border: 1px solid var(--ctrl-line);
+  border-radius: 12px; padding: 10px 12px 6px; font-size: 12.5px; color: var(--text); }
+.custom-tip-ctrl .legend-head { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center;
+  justify-content: space-between; cursor: pointer; margin-bottom: 8px; }
+.custom-tip-ctrl h5 { margin: 0; font-size: 12.5px; font-weight: 700; }
+.custom-tip-ctrl .legend-chev { color: var(--muted); font-size: 12px; transition: transform .15s; }
+.custom-tip-ctrl .ctrl-svg { display: none; }
+/* collapsed: a 40px icon button like the other controls */
+.custom-tip-ctrl.collapsed { width: 40px; height: 40px; padding: 0; background: var(--ctrl); color: var(--ctrl-fg);
+  backdrop-filter: blur(6px); }
+.custom-tip-ctrl.collapsed .legend-body, .custom-tip-ctrl.collapsed h5, .custom-tip-ctrl.collapsed .legend-chev { display: none; }
+.custom-tip-ctrl.collapsed .legend-head { height: 100%; margin: 0; justify-content: center; }
+.custom-tip-ctrl.collapsed .ctrl-svg { display: block; }
+.custom-tip-ctrl.collapsed .legend-head:hover { background: var(--ctrl-hover); border-radius: 11px; }
 .custom-tip-ctrl .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
 .custom-tip-ctrl .legend-swatch { width: 14px; height: 14px; border-radius: 3px; flex: none; }
 .custom-tip-ctrl .legend-swatch.green { background: var(--green); }
 .custom-tip-ctrl .legend-swatch.purple { background: var(--purple); }
-.custom-tip-ctrl .tip-text { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--card-line);
-  color: var(--muted); font-size: 11.3px; }
 
 /* map popups and tooltips */
 .maplibregl-popup-content { background: var(--card) !important; color: var(--text); border: 1px solid var(--ctrl-line);
