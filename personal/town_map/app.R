@@ -16,6 +16,14 @@ commuter_shapes_sf <- readRDS("data/shapes_sf.rds") |>
   st_make_valid()
 commuter_stations_sf <- readRDS("data/commuter_stations_sf.rds") |>
   mutate(label = paste0(stop_name, " — ", municipality))
+# T lines (subway + light rail), built by 03_mbta.R
+subway_shapes_sf <- readRDS("data/subway_shapes_sf.rds") |>
+  mutate(line = sub(" Line.*$", "", route_name)) |> # "Green Line B" -> "Green"; used by the line chips
+  st_transform(4326) |>
+  st_simplify(dTolerance = 10) |>
+  st_make_valid()
+subway_stations_sf <- readRDS("data/subway_stations_sf.rds") |>
+  mutate(label = paste0(stop_name, " — ", lines, if_else(grepl(",", lines), " Lines", " Line")))
 
 # Town attributes for the details card (one row per town, no geometry)
 town_info <- towns_sf |>
@@ -61,7 +69,7 @@ about_ui <- function() {
       tags$p(class = "about-sub", "How to use it"),
       tags$ol(
         tags$li("Shortlist towns with strong schools (shaded green or purple)."),
-        tags$li("Check the commute: commuter rail lines, or the ruler for driving time."),
+        tags$li("Check the commute: tap Transit on the map to show commuter rail and T lines, or use the ruler for driving time."),
         tags$li(
           "Check home prices and taxes in the town's details, then search listings on ",
           src_link("Redfin", redfin_url, .noWS = "after"), "."
@@ -71,7 +79,8 @@ about_ui <- function() {
         class = "about-legend",
         tags$div(tags$span(class = "set-swatch tier1"), tags$b("Tier 1"), " school score 70+"),
         tags$div(tags$span(class = "set-swatch tier2"), tags$b("Tier 2"), " school score 50–69"),
-        tags$div(tags$span(class = "about-line"), "Commuter rail lines and stations")
+        tags$div(tags$span(class = "about-line"), "Commuter rail lines and stations"),
+        tags$div(tags$span(class = "set-swatch subway"), "T lines (subway and light rail)")
       )
     ),
     tags$section(
@@ -117,7 +126,7 @@ about_ui <- function() {
         tags$li(src_link("Zillow Research", "https://www.zillow.com/research/data/"), " (home values)"),
         tags$li(src_link("MA Division of Local Services", "https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?rdReport=PropertyTaxInformation.taxratesbyclass.taxratesbyclass_main"), " (tax rates)"),
         tags$li(src_link("U.S. Census ACS 5-year", "https://data.census.gov/"), " (population)"),
-        tags$li(src_link("MBTA GTFS", "https://www.mbta.com/developers/gtfs"), " (commuter rail)"),
+        tags$li(src_link("MBTA GTFS", "https://www.mbta.com/developers/gtfs"), " (commuter rail and T lines)"),
         tags$li(src_link("OSRM", "https://project-osrm.org/"), " (driving distances for the ruler)")
       ),
       tags$p(class = "about-note", "Each source is pulled at its latest available release whenever the data is rebuilt.")
@@ -225,7 +234,7 @@ ui <- bootstrapPage(
           tags$button(type = "button", `data-theme-choice` = "light", "Light"),
           tags$button(type = "button", `data-theme-choice` = "dark", "Dark")
         ),
-        tags$div(class = "set-label set-gap", "Map layers"),
+        tags$div(class = "set-label set-gap", "School shading on map"),
         tags$label(
           class = "set-toggle",
           tags$span(class = "set-swatch tier1"),
@@ -237,12 +246,37 @@ ui <- bootstrapPage(
           tags$span(class = "set-swatch tier2"),
           tags$span(class = "set-text", tags$b("Tier 2 schools"), tags$small("score 50–69")),
           tags$input(type = "checkbox", `data-tier` = "2", checked = NA)
-        ),
+        )
+      ),
+      # Transit panel: opened by the "Transit" button in the map's control stack
+      # (added by layout.js); positioned next to that button
+      tags$div(
+        id = "transit-pop", class = "settings-pop transit-pop", role = "dialog", `aria-label` = "Transit layers",
+        tags$div(class = "set-label", "Show on map"),
         tags$label(
           class = "set-toggle",
           tags$span(class = "set-swatch rail"),
           tags$span(class = "set-text", tags$b("Commuter rail"), tags$small("MBTA lines and stations")),
           tags$input(type = "checkbox", `data-layer` = "rail", checked = NA)
+        ),
+        tags$div(
+          class = "set-tlines",
+          tags$div(class = "set-text", tags$b("T lines"), tags$small("subway and light rail: tap to show or hide each")),
+          tags$div(
+            class = "chips",
+            lapply(
+              list(
+                list("Red", "#DA291C"), list("Orange", "#ED8B00"), list("Blue", "#003DA5"),
+                list("Green", "#00843D"), list("Mattapan", "#DA291C")
+              ),
+              function(l) {
+                tags$button(
+                  type = "button", class = "tchip", `data-tline` = l[[1]], `aria-pressed` = "false", # T lines start off
+                  style = paste0("--c:", l[[2]]), l[[1]]
+                )
+              }
+            )
+          )
         )
       ),
       tags$div(id = "toast")
@@ -275,6 +309,14 @@ base_map <- maplibre(style = style_key) |>
     line_width = 2,
     tooltip = "shape_id"
   ) |>
+  add_line_layer(
+    id = "subway",
+    source = subway_shapes_sf,
+    line_color = get_column("route_color"), # official MBTA line colors
+    line_width = 3,
+    visibility = "none", # T lines start off; layout.js shows them once a line chip is on
+    tooltip = "route_name"
+  ) |>
   add_fill_layer(
     id = "towns",
     source = towns_map,
@@ -294,6 +336,21 @@ base_map <- maplibre(style = style_key) |>
     circle_color = "white",
     circle_stroke_color = "#C264D6",
     circle_stroke_width = 2,
+    tooltip = "label",
+    popup = "label"
+  ) |>
+  add_circle_layer(
+    id = "subway_stations",
+    source = subway_stations_sf,
+    circle_radius = interpolate(
+      property = "zoom",
+      values = c(8, 14),
+      stops = c(2.5, 7)
+    ),
+    circle_color = "white",
+    circle_stroke_color = get_column("station_color"), # gray at transfer stations
+    circle_stroke_width = 2,
+    visibility = "none", # see subway layer above
     tooltip = "label",
     popup = "label"
   )

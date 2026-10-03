@@ -15,7 +15,8 @@
     phone: '<svg class="ctrl-svg" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
     desktop: '<svg class="ctrl-svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
     ruler: '<svg class="ctrl-svg" viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7.5 12.5l2 2M10.5 9.5l2 2M13.5 6.5l2 2"/></svg>',
-    info: '<svg class="ctrl-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6"/></svg>'
+    info: '<svg class="ctrl-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6"/></svg>',
+    train: '<svg class="ctrl-svg" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M9 21l2-4M15 21l-2-4"/><circle cx="9" cy="14" r=".7"/><circle cx="15" cy="14" r=".7"/></svg>'
   };
 
   // ---------- light / dark theme ----------
@@ -55,9 +56,42 @@
   function setSettingsOpen(open) {
     var pop = $('#settings-pop');
     if (!pop) return;
+    if (open) setTransitOpen(false); // only one menu at a time
     pop.classList.toggle('open', open);
     $('#settings-btn').setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open) placeSettings();
+  }
+
+  // ---------- transit panel (opened by the map's "Transit" button) ----------
+  // Sits to the left of the button, level with it; drops below it if the
+  // screen is too narrow for that
+  function placeTransit() {
+    var pop = $('#transit-pop'), btn = $('#transit-btn'), st = $('#stage');
+    if (!pop || !btn) return;
+    var b = btn.getBoundingClientRect(), s = st.getBoundingClientRect();
+    var left = b.left - s.left - pop.offsetWidth - 8, top = b.top - s.top;
+    if (left < 8) { left = clamp(b.right - s.left - pop.offsetWidth, 8, st.clientWidth - pop.offsetWidth - 8); top = b.bottom - s.top + 8; }
+    pop.style.left = left + 'px';
+    pop.style.top = clamp(top, 8, Math.max(8, st.clientHeight - pop.offsetHeight - 8)) + 'px';
+  }
+  function setTransitOpen(open) {
+    var pop = $('#transit-pop'), btn = $('#transit-btn');
+    if (!pop) return;
+    if (open) setSettingsOpen(false);
+    pop.classList.toggle('open', open);
+    if (btn) {
+      btn.classList.toggle('active', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    if (open) placeTransit();
+  }
+  // Number of transit layers currently showing, as a badge on the button
+  function updateTransitBadge() {
+    var badge = $('#transit-badge');
+    if (!badge || !state.transit) return;
+    var n = (state.transit.rail ? 1 : 0) + TLINE_NAMES.filter(function (x) { return state.tlines[x]; }).length;
+    badge.textContent = n;
+    badge.style.display = n ? '' : 'none';
   }
 
   // Keep the loading overlay up until the basemap matches the theme, so a
@@ -78,7 +112,7 @@
     if (!map || !map.getLayer('towns')) return;
     Object.keys(TOWN_PAINT[theme]).forEach(function (k) { map.setPaintProperty('towns', k, TOWN_PAINT[theme][k]); });
     applyTiers();
-    applyRail();
+    applyTransit();
   }
 
   // ---------- school tier fills (settings menu) ----------
@@ -110,24 +144,69 @@
     applyTiers();
   }
 
-  // ---------- commuter rail layer (settings menu) ----------
-  var RAIL_KEY = 'townmap-rail';
-  var RAIL_LAYERS = ['commuter', 'commuter_stations'];
-  state.rail = (function () {
-    try { return localStorage.getItem(RAIL_KEY) !== 'off'; } catch (e) { return true; }
-  })();
+  // ---------- transit layers (settings menu) ----------
+  // Each switch shows/hides a group of map layers; choices are remembered
+  var TRANSIT = {
+    rail: { key: 'townmap-rail', layers: ['commuter', 'commuter_stations'] }
+  };
+  state.transit = {};
+  Object.keys(TRANSIT).forEach(function (name) {
+    try { state.transit[name] = localStorage.getItem(TRANSIT[name].key) !== 'off'; } catch (e) { state.transit[name] = true; }
+  });
 
-  function applyRail() {
+  // T lines: one chip per line (Green's four branches share a chip). The shapes
+  // carry a `line` property ("Red", "Green", ...); a station's `lines` property
+  // lists every line serving it, so it shows while any of its lines is on.
+  var TLINES_KEY = 'townmap-tlines';
+  var TLINE_NAMES = ['Red', 'Orange', 'Blue', 'Green', 'Mattapan'];
+  state.tlines = (function () {
+    var on = {};
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(TLINES_KEY) || 'null'); } catch (e) {}
+    // Off unless the user turned a line on; the commuter rail is the default transit layer
+    TLINE_NAMES.forEach(function (n) { on[n] = !!(saved && saved[n] === true); });
+    return on;
+  })();
+  state.tlinesReady = true;
+
+  function applyTLines() {
     if (!map) return;
-    RAIL_LAYERS.forEach(function (id) {
-      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', state.rail ? 'visible' : 'none');
+    var shown = TLINE_NAMES.filter(function (n) { return state.tlines[n]; });
+    var vis = shown.length ? 'visible' : 'none';
+    ['subway', 'subway_stations'].forEach(function (id) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
     });
+    if (!shown.length) return;
+    if (map.getLayer('subway')) {
+      map.setFilter('subway', ['in', ['get', 'line'], ['literal', shown]]);
+    }
+    if (map.getLayer('subway_stations')) {
+      map.setFilter('subway_stations', ['any'].concat(shown.map(function (n) { return ['in', n, ['get', 'lines']]; })));
+    }
   }
 
-  function setRail(on) {
-    state.rail = on;
-    try { localStorage.setItem(RAIL_KEY, on ? 'on' : 'off'); } catch (e) {}
-    applyRail();
+  function setTLine(name, on) {
+    state.tlines[name] = on;
+    try { localStorage.setItem(TLINES_KEY, JSON.stringify(state.tlines)); } catch (e) {}
+    applyTLines();
+    updateTransitBadge();
+  }
+
+  function applyTransit() {
+    if (!map) return;
+    Object.keys(TRANSIT).forEach(function (name) {
+      TRANSIT[name].layers.forEach(function (id) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', state.transit[name] ? 'visible' : 'none');
+      });
+    });
+    applyTLines();
+  }
+
+  function setTransit(name, on) {
+    state.transit[name] = on;
+    try { localStorage.setItem(TRANSIT[name].key, on ? 'on' : 'off'); } catch (e) {}
+    applyTransit();
+    updateTransitBadge();
   }
 
   function sendTheme() {
@@ -221,6 +300,7 @@
   function applyMode(mode) {
     state.mode = mode;
     setSettingsOpen(false);
+    setTransitOpen(false);
     var app = $('#app');
     app.classList.remove('mode-web', 'mode-mobile');
     app.classList.add('mode-' + mode);
@@ -323,13 +403,25 @@
       cb.checked = state.tiers[tier];
       cb.addEventListener('change', function () { setTier(tier, cb.checked); });
     });
-    var railCb = $('input[data-layer="rail"]');
-    if (railCb) {
-      railCb.checked = state.rail;
-      railCb.addEventListener('change', function () { setRail(railCb.checked); });
-    }
-    document.addEventListener('click', function () { setSettingsOpen(false); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setSettingsOpen(false); });
+    document.querySelectorAll('.tchip[data-tline]').forEach(function (chip) {
+      var name = chip.getAttribute('data-tline');
+      chip.setAttribute('aria-pressed', state.tlines[name] ? 'true' : 'false');
+      chip.addEventListener('click', function () {
+        var on = chip.getAttribute('aria-pressed') !== 'true';
+        chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+        setTLine(name, on);
+      });
+    });
+    document.querySelectorAll('input[data-layer]').forEach(function (cb) {
+      var name = cb.getAttribute('data-layer');
+      cb.checked = state.transit[name];
+      cb.addEventListener('change', function () { setTransit(name, cb.checked); });
+    });
+    $('#transit-pop').addEventListener('click', function (e) { e.stopPropagation(); });
+    document.addEventListener('click', function () { setSettingsOpen(false); setTransitOpen(false); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { setSettingsOpen(false); setTransitOpen(false); }
+    });
     $('#expand-tab').addEventListener('click', function () { setPanel(true); });
     document.querySelectorAll('#tabbar [data-tab]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -405,6 +497,25 @@
     map.once('idle', syncCredits); // attribution text fills in as sources load
     setTimeout(syncCredits, 1500);
 
+    // Transit button (icon only): opens the commuter rail / T layers panel.
+    // CSS `order` keeps it last in the stack.
+    var tgroup = document.createElement('div');
+    tgroup.className = 'maplibregl-ctrl maplibregl-ctrl-group transit-ctrl';
+    var tbtn = document.createElement('button');
+    tbtn.type = 'button';
+    tbtn.id = 'transit-btn';
+    tbtn.title = 'Show or hide commuter rail and T lines';
+    tbtn.setAttribute('aria-haspopup', 'true');
+    tbtn.setAttribute('aria-expanded', 'false');
+    tbtn.innerHTML = ICONS.train;
+    tbtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setTransitOpen(!$('#transit-pop').classList.contains('open'));
+    });
+    tgroup.appendChild(tbtn);
+    corner.appendChild(tgroup);
+    updateTransitBadge();
+
     // Mobile / web toggle
     var group = document.createElement('div');
     group.className = 'maplibregl-ctrl maplibregl-ctrl-group mode-toggle-ctrl';
@@ -424,8 +535,12 @@
     // Tell the server the theme once the map (and mapgl's layers) have loaded,
     // so set_style() has layers to carry over to the new basemap
     // (also applies any saved tier choices now that the towns layer exists)
-    function onMapLoaded() { applyTiers(); applyRail(); sendTheme(); }
+    function onMapLoaded() { applyTiers(); applyTransit(); sendTheme(); }
     if (map.loaded()) setTimeout(onMapLoaded, 0); else map.once('idle', onMapLoaded);
+    // mapgl re-adds the layers after a basemap swap but drops their filters, and
+    // the timing varies, so re-apply the layer choices whenever the map settles.
+    // MapLibre ignores a setting that's already applied, so this is cheap.
+    map.on('idle', function () { applyTiers(); applyTransit(); });
 
     // Locate me. The position stays in the browser; nothing is sent to Shiny.
     var geo = new maplibregl.GeolocateControl({
@@ -446,7 +561,7 @@
       var oe = e.originalEvent, f = e.features && e.features[0];
       setTimeout(function () {
         if (!f || (oe && oe.__ruler)) return;
-        var other = ['commuter_stations', 'search_pt'].filter(function (l) { return map.getLayer(l); });
+        var other = ['commuter_stations', 'subway_stations', 'search_pt'].filter(function (l) { return map.getLayer(l); });
         if (other.length && map.queryRenderedFeatures(e.point, { layers: other }).length) return;
         Shiny.setInputValue('town_click', { name: f.properties.town_name, t: Date.now() }, { priority: 'event' });
       }, 0);

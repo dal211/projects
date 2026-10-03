@@ -125,9 +125,13 @@ a:hover, a:focus { color: inherit; }
 .maplibregl-ctrl-group button:last-child { border-radius: 0 0 12px 12px; }
 .maplibregl-ctrl-group button:only-child { border-radius: 12px; }
 .maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: var(--ctrl-icon-filter); }
-.maplibregl-ctrl-group button.active { background: var(--accent) !important; color: #fff; }
+.maplibregl-ctrl-group button.active,
+.maplibregl-ctrl-group button.active:not(:disabled):hover { background: var(--accent) !important; color: #fff; }
 .maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-active .maplibregl-ctrl-icon,
 .maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-background .maplibregl-ctrl-icon { filter: none; }
+/* Transit button: icon only, last in the control stack */
+.maplibregl-ctrl-group.transit-ctrl { order: 99; }
+.transit-pop { width: 270px; }
 .ctrl-svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8;
   stroke-linecap: round; stroke-linejoin: round; display: block; margin: auto; }
 /* mapgl adds its zoom/compass group after the custom controls; float it to the top, hide it on mobile */
@@ -212,7 +216,7 @@ a:hover, a:focus { color: inherit; }
 .settings-btn[aria-expanded="true"] { background: var(--btn-hover); }
 
 /* settings menu (positioned by layout.js) */
-.settings-pop { display: none; position: absolute; z-index: 35; width: 220px; padding: 12px; border-radius: 14px;
+.settings-pop { display: none; position: absolute; z-index: 35; width: 240px; padding: 12px; border-radius: 14px;
   background: var(--panel); border: 1px solid var(--ctrl-line); box-shadow: 0 10px 30px var(--shadow); color: var(--text); }
 .settings-pop.open { display: block; }
 .set-label { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
@@ -227,6 +231,18 @@ a:hover, a:focus { color: inherit; }
 .set-swatch.tier1 { background: var(--green); }
 .set-swatch.tier2 { background: var(--purple); }
 .set-swatch.rail { height: 0; border-radius: 0; border-top: 3px solid #C264D6; }
+.set-swatch.subway { height: 4px; border-radius: 2px;
+  background: linear-gradient(90deg, #DA291C 0 25%, #ED8B00 25% 50%, #003DA5 50% 75%, #00843D 75%); }
+/* T line chips: filled in the line's color when on, outlined when off */
+.set-tlines { padding: 10px 2px 2px; }
+.set-tlines .set-text { margin-bottom: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tchip { border: 2px solid var(--c); border-radius: 99px; padding: 4px 11px; font-size: 12.5px; font-weight: 600;
+  background: transparent; color: var(--text); cursor: pointer; transition: background .15s, color .15s; }
+.tchip[aria-pressed="true"] { background: var(--c); color: #fff; }
+.tchip[aria-pressed="false"] { opacity: .75; }
+.tchip:hover { filter: brightness(1.06); }
+.tchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .set-text { flex: 1; display: flex; flex-direction: column; line-height: 1.25; }
 .set-text b { font-size: 13.5px; font-weight: 600; }
 .set-text small { font-size: 11.5px; color: var(--muted); }
