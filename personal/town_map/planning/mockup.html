@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Town Map UI Mockup</title>
+<style>
+  :root {
+    --bg: #10141a;
+    --panel: #343b47;
+    --card: #0b0d10;
+    --card-line: #232a34;
+    --field: #161b22;
+    --field-line: #3a4452;
+    --text: #f2f4f7;
+    --muted: #a3adbb;
+    --accent: #4c8dff;
+    --red: #ff5a4f;
+    --green: #009688;
+    --purple: #ab47bc;
+    --up: #5fd38d;
+    --down: #ff8a80;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: #07090c; color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+  button { font: inherit; color: inherit; }
+  a { color: inherit; }
+
+  /* ---------- frame ---------- */
+  #app { position: fixed; inset: 0 0 30px 0; display: flex; align-items: center; justify-content: center; }
+  .stage { position: relative; overflow: hidden; background: var(--bg); }
+  .mode-web .stage { width: 100%; height: 100%; }
+  .mode-mobile .stage { width: 390px; height: min(844px, 100%); border-radius: 38px;
+    border: 1px solid #2a313b; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  @media (max-width: 767px) {
+    #app { inset: 0; }
+    .mode-mobile .stage { width: 100%; height: 100%; border-radius: 0; border: 0; box-shadow: none; }
+    #note { display: none; }
+  }
+  #note { position: fixed; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 11.5px; color: #6f7a89; pointer-events: none; }
+
+  /* ---------- map ---------- */
+  #svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; user-select: none; }
+  #svg.measuring { cursor: crosshair; }
+  .town { stroke: #3a4452; stroke-width: 1.2; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill-opacity .15s; }
+  .t0 { fill: #8794a6; fill-opacity: .06; } .t0:hover { fill-opacity: .16; }
+  .t1 { fill: #009688; fill-opacity: .24; } .t1:hover { fill-opacity: .42; }
+  .t2 { fill: #ab47bc; fill-opacity: .24; } .t2:hover { fill-opacity: .42; }
+  .rail { fill: none; stroke: #ab47bc; stroke-width: 2.5; vector-effect: non-scaling-stroke; pointer-events: none; }
+  #hi { fill: none; stroke: var(--red); stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .ruler-line { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .lbl text { font-size: 10.5px; fill: #c6cfdb; paint-order: stroke; stroke: #10141a; stroke-width: 3px; stroke-linejoin: round; text-anchor: middle; pointer-events: none; }
+  .stn { cursor: pointer; }
+  .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.8s ease-out infinite; }
+  @keyframes pulse { 0% { transform: scale(.5); opacity: .9; } 100% { transform: scale(1.6); opacity: 0; } }
+
+  .popup { position: absolute; z-index: 14; pointer-events: none; background: var(--card); border: 1px solid #2c3440;
+    border-radius: 10px; padding: 8px 10px; font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.5); white-space: nowrap; }
+  .popup small { display: block; color: var(--muted); font-size: 11.3px; margin-top: 2px; }
+  .popup b { font-weight: 600; }
+  #hover { position: absolute; z-index: 13; pointer-events: none; display: none; background: #000; border: 1px solid #2c3440;
+    border-radius: 8px; padding: 4px 8px; font-size: 12.5px; transform: translate(12px, 14px); }
+
+  /* ---------- map controls ---------- */
+  #stack { position: absolute; right: 12px; top: 12px; z-index: 12; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  .mode-mobile #stack { top: 74px; }
+  .ctrl { width: 40px; height: 40px; border-radius: 12px; background: rgba(26,31,39,.88); backdrop-filter: blur(6px);
+    border: 1px solid #2c3440; color: #e6ebf2; display: grid; place-items: center; cursor: pointer; padding: 0; }
+  .ctrl:hover { background: rgba(40,47,58,.95); }
+  .ctrl.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ctrl svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .zoom { display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; border: 1px solid #2c3440; }
+  .zoom .ctrl { border: 0; border-radius: 0; font-size: 20px; line-height: 1; }
+  .zoom .ctrl + .ctrl { border-top: 1px solid #2c3440; }
+  .mode-mobile .zoom { display: none; }
+  .info-wrap { position: relative; }
+  .info-pop { display: none; position: absolute; right: 48px; top: 0; width: 236px; background: var(--card); border: 1px solid #2c3440;
+    border-radius: 12px; padding: 12px 14px; font-size: 12.5px; box-shadow: 0 8px 24px rgba(0,0,0,.5); text-align: left; }
+  .info-pop.open { display: block; }
+  .info-pop h5 { margin: 0 0 8px; font-size: 12.5px; font-weight: 700; }
+  .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+  .info-pop .tip { margin-top: 8px; padding-top: 7px; border-top: 1px solid #232a34; color: var(--muted); font-size: 11.3px; }
+
+  .m-search { display: none; position: absolute; top: 14px; left: 14px; right: 14px; height: 46px; border-radius: 14px; z-index: 15;
+    background: #000; border: 1px solid #2b323d; color: #8b95a3; align-items: center; gap: 10px; padding: 0 14px; font-size: 16px; text-align: left; cursor: text; }
+  .m-search svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  .mode-mobile .m-search { display: flex; }
+
+  #toast { position: absolute; left: 50%; top: 18px; transform: translate(-50%, -12px); z-index: 30; background: #000; border: 1px solid #2c3440;
+    border-radius: 12px; padding: 9px 14px; font-size: 13.5px; opacity: 0; pointer-events: none; transition: .25s; max-width: 86%; text-align: center; }
+  .mode-mobile #toast { top: 74px; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- panel (bottom sheet on mobile, sidebar on web) ---------- */
+  .panel { position: absolute; z-index: 20; background: var(--panel); display: flex; flex-direction: column;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5); overflow: hidden; }
+  .mode-mobile .panel { left: 8px; right: 8px; bottom: 8px; border-radius: 26px; }
+  .mode-web .panel { top: 12px; left: 12px; bottom: 12px; width: 332px; border-radius: 18px; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  .mode-web.panel-closed .panel { transform: translateX(calc(-100% - 24px)); }
+
+  .grip { display: none; height: 28px; flex: none; align-items: center; justify-content: center; cursor: grab; touch-action: none; }
+  .grip span { width: 44px; height: 5px; border-radius: 3px; background: #6b7585; }
+  .mode-mobile .grip { display: flex; }
+  .p-head { flex: none; padding: 14px 18px 12px; touch-action: none; }
+  .mode-mobile .p-head { padding-top: 0; }
+  .p-head h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+  .p-links { display: flex; gap: 16px; margin-top: 6px; font-size: 13.5px; }
+  .p-links a { color: var(--muted); text-decoration: none; }
+  .p-links a:hover { color: var(--text); }
+  .collapse { display: none; position: absolute; right: 10px; top: 12px; width: 30px; height: 30px; border-radius: 9px; border: 0;
+    background: #454e5c; cursor: pointer; font-size: 18px; line-height: 1; }
+  .mode-web .collapse { display: block; }
+  .expand-tab { display: none; position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 19; width: 24px; height: 64px;
+    border: 0; border-radius: 0 12px 12px 0; background: var(--panel); cursor: pointer; font-size: 18px; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+  .mode-web.panel-closed .expand-tab { display: block; }
+
+  .p-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 14px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .mode-mobile .card { order: -1; }
+  .box { background: var(--card); border: 1px solid var(--card-line); border-radius: 14px; padding: 14px; }
+  .box h4 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+  .or { display: flex; align-items: center; gap: 8px; margin: 12px 0 10px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .06em; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: #2a323d; }
+  select, input[type=text] { width: 100%; background: var(--field); border: 1px solid var(--field-line); color: var(--text);
+    border-radius: 10px; padding: 10px 12px; font-size: 15px; font-family: inherit; }
+  .mode-mobile select, .mode-mobile input[type=text] { font-size: 16px; }
+  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btns { display: flex; gap: 8px; margin-top: 10px; }
+  .btn { flex: 1; border: 0; border-radius: 10px; padding: 10px 12px; font-size: 14.5px; font-weight: 600; cursor: pointer; background: #3d4552; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn:disabled { opacity: .7; cursor: default; }
+  .hint { margin: 10px 0 0; color: var(--muted); font-size: 12.5px; }
+  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%;
+    animation: spin .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- town card ---------- */
+  .c-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 8px; flex: none; }
+  .c-head h2 { margin: 0; font-size: 21px; line-height: 1.2; }
+  .c-head p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  .c-head .x { margin-left: auto; border: 0; background: #2a313b; width: 28px; height: 28px; border-radius: 9px; cursor: pointer; font-size: 17px; line-height: 1; flex: none; }
+  .chip { display: inline-block; margin-top: 6px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+  .chip.t1 { background: rgba(0,150,136,.25); color: #4fd6c8; fill-opacity: 1; }
+  .chip.t2 { background: rgba(171,71,188,.25); color: #d68be4; fill-opacity: 1; }
+  .chip.t0 { background: #232a34; color: var(--muted); fill-opacity: 1; }
+  .c-sec { margin-top: 14px; }
+  .c-sec h3 { margin: 0 0 6px; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 6px 0; border-top: 1px solid var(--card-line); font-size: 14px; }
+  .row:first-of-type { border-top: 0; }
+  .row span { color: var(--muted); }
+  .row b { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+  .row em { font-style: normal; font-size: 12.5px; margin-left: 6px; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .score { display: flex; align-items: baseline; gap: 6px; }
+  .score b { font-size: 30px; font-variant-numeric: tabular-nums; }
+  .score sup { font-size: 14px; font-weight: 600; margin-left: 1px; vertical-align: top; position: relative; top: 4px; }
+  .score span { color: var(--muted); font-size: 13px; }
+  .bar { height: 6px; border-radius: 3px; background: #232a34; margin: 6px 0 8px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--green); border-radius: 3px; }
+  .c-links { display: flex; gap: 8px; margin-top: 14px; }
+  .c-links a { flex: 1; text-align: center; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px; border-radius: 10px; background: #1b222c; border: 1px solid #2c3440; }
+  .c-links a:hover { background: #232b37; }
+</style>
+</head>
+<body>
+<div id="app" class="mode-web">
+  <div class="stage" id="stage">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg"><g id="world"></g></svg>
+    <div id="hover"></div>
+
+    <button class="m-search" id="mSearch" type="button">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <span>Search town or address</span>
+    </button>
+
+    <div id="stack">
+      <div class="zoom">
+        <button class="ctrl" id="zin" type="button" title="Zoom in">+</button>
+        <button class="ctrl" id="zout" type="button" title="Zoom out">&minus;</button>
+      </div>
+      <button class="ctrl" id="modeBtn" type="button"></button>
+      <button class="ctrl" id="locBtn" type="button" title="Show my location">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+      <button class="ctrl" id="rulerBtn" type="button" title="Measure distance">
+        <svg viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7.5 12.5l2 2M10.5 9.5l2 2M13.5 6.5l2 2"/></svg>
+      </button>
+      <div class="info-wrap">
+        <button class="ctrl" id="infoBtn" type="button" title="Map info &amp; legend">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6"/></svg>
+        </button>
+        <div class="info-pop" id="infoPop">
+          <h5>School Quality</h5>
+          <div class="legend-row"><span class="swatch" style="background:#009688"></span>&gt;70th percentile (Tier 1)</div>
+          <div class="legend-row"><span class="swatch" style="background:#ab47bc"></span>50&ndash;69th percentile (Tier 2)</div>
+          <div class="tip">Tip: Hold Ctrl + drag to tilt &amp; rotate.</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="expand-tab" id="expandTab" type="button" title="Show panel">&rsaquo;</button>
+
+    <aside class="panel" id="panel">
+      <div class="grip" id="grip"><span></span></div>
+      <header class="p-head" id="phead">
+        <h1>Where Should I Live?</h1>
+        <nav class="p-links">
+          <a href="https://www.redfin.com/" target="_blank" rel="noopener">Redfin</a>
+          <a href="https://www.niche.com/places-to-live/search/best-places-to-live/" target="_blank" rel="noopener">Niche</a>
+        </nav>
+        <button class="collapse" id="collapseBtn" type="button" title="Hide panel">&lsaquo;</button>
+      </header>
+      <div class="p-body" id="pbody">
+        <section class="box card" id="card" hidden></section>
+        <section class="box">
+          <h4>Explore a town</h4>
+          <select id="townSel" aria-label="Select a town"></select>
+          <div class="or">OR</div>
+          <h4>Explore an address</h4>
+          <input type="text" id="addr" placeholder="e.g., 24 Beacon St, Newton" autocomplete="off">
+          <div class="btns">
+            <button class="btn primary" id="findBtn" type="button">Find address</button>
+            <button class="btn" id="resetBtn" type="button">Reset map</button>
+          </div>
+          <p class="hint">Tap a town on the map to see its details here.</p>
+        </section>
+      </div>
+    </aside>
+
+    <div id="toast"></div>
+  </div>
+</div>
+<div id="note">Mockup only &mdash; placeholder map and sample data. Drag the map, scroll to zoom, drag the sheet handle, try the buttons.</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+
+  // ---------- URL hash options (used for quick screenshots) ----------
+  var params = {};
+  location.hash.slice(1).split('&').filter(Boolean).forEach(function (p) {
+    var kv = p.split('='); params[kv[0]] = decodeURIComponent(kv[1] || '');
+  });
+
+  var app = $('#app'), stage = $('#stage'), svg = $('#svg'), world = $('#world'),
+      panel = $('#panel'), pbody = $('#pbody'), cardEl = $('#card'), toastEl = $('#toast'),
+      townSel = $('#townSel'), addrEl = $('#addr'), hoverEl = $('#hover');
+
+  var S = {
+    mode: 'web', sheet: 'half', panelOpen: true, town: null,
+    view: { cx: 500, cy: 450, scale: 0.5 },
+    ruler: { active: false, a: null }, located: false, anim: null
+  };
+
+  // ---------- sample data ----------
+  function rnd(i) { var x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  var NAMES = ['Lexington','Belmont','Arlington','Medford','Malden',
+               'Waltham','Watertown','Cambridge','Somerville','Everett',
+               'Newton','Brookline','Boston','Chelsea','Winthrop',
+               'Wellesley','Needham','Dedham','Milton','Quincy'];
+  var REAL = { Boston: { price: 812558, chg: 0.7, tax: 1.24 }, Newton: { price: 1292337, chg: 1.9, tax: 0.97 } };
+  var COLS = 5, ROWS = 4, X0 = 110, Y0 = 170, CW = 156, CH = 150, MILE = 40; // world units per mile
+
+  var V = [];
+  for (var r = 0; r <= ROWS; r++) {
+    V[r] = [];
+    for (var c = 0; c <= COLS; c++) {
+      V[r][c] = [X0 + c * CW + (rnd(r * 10 + c) - .5) * 46, Y0 + r * CH + (rnd(r * 10 + c + 77) - .5) * 46];
+    }
+  }
+
+  var TOWNS = NAMES.map(function (name, i) {
+    var row = Math.floor(i / COLS), col = i % COLS;
+    var pts = [V[row][col], V[row][col + 1], V[row + 1][col + 1], V[row + 1][col]];
+    var cx = 0, cy = 0, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    pts.forEach(function (p) { cx += p[0] / 4; cy += p[1] / 4; x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+    var q = function (k) { return rnd(i * 13.7 + k); };
+    var real = REAL[name];
+    var pct = name === 'Newton' ? 92 : Math.round(22 + q(1) * 72);
+    var district = (i % 7 === 3) ? name + '-' + NAMES[(i + 3) % 20] + ' Regional' : name + ' Public Schools';
+    return {
+      name: name, pts: pts, cx: cx, cy: cy, bbox: { x0: x0, y0: y0, x1: x1, y1: y1 },
+      district: district, pct: pct, tier: pct >= 70 ? 1 : pct >= 50 ? 2 : 0,
+      price: real ? real.price : Math.round((380 + q(2) * 900) / 10) * 10000,
+      chg: real ? real.chg : Math.round((q(3) * 8 - 2) * 10) / 10,
+      tax: real ? real.tax : Math.round((0.7 + q(4) * 1.1) * 100) / 100,
+      mcas: clamp(Math.round(pct + (q(5) - .5) * 14), 5, 99),
+      ap: clamp(Math.round(pct + (q(6) - .5) * 14), 5, 99),
+      sat: clamp(Math.round(pct + (q(7) - .5) * 14), 5, 99),
+      college: clamp(Math.round(38 + pct * 0.45 + (q(8) - .5) * 8), 30, 95),
+      size: Math.round((300 + q(9) * 2200) / 10) * 10
+    };
+  });
+
+  var LINES = [
+    [[60,300],[220,330],[400,380],[560,430],[700,470],[940,520]],
+    [[500,120],[490,260],[520,380],[560,430],[600,560],[640,800]],
+    [[100,640],[300,600],[470,540],[600,560],[760,610],[930,640]]
+  ];
+  function nearestTown(x, y) {
+    var best = TOWNS[0], bd = 1e12;
+    TOWNS.forEach(function (t) { var d = (t.cx - x) * (t.cx - x) + (t.cy - y) * (t.cy - y); if (d < bd) { bd = d; best = t; } });
+    return best;
+  }
+  var STATIONS = [['Waltham',220,330],['Newton Corner',400,380],['Back Bay',560,430],['Ruggles',700,470],
+                  ['Lincoln',500,120],['Porter',490,260],['South Station',600,560],['Readville',640,800],
+                  ['Needham Junction',300,600],['Hyde Park',470,540],['Braintree',760,610]]
+    .map(function (s) { return { name: s[0], x: s[1], y: s[2], muni: nearestTown(s[1], s[2]).name }; });
+
+  // ---------- build the SVG map ----------
+  function pstr(pts) { return pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '); }
+  var html = '';
+  html += '<rect x="-3000" y="-3000" width="7000" height="7000" fill="#10141a"/>';
+  html += '<ellipse cx="190" cy="140" rx="90" ry="50" fill="#14221b"/><ellipse cx="830" cy="800" rx="110" ry="46" fill="#14221b"/><ellipse cx="900" cy="250" rx="70" ry="60" fill="#14221b"/>';
+  html += '<path d="M -400 520 C 150 470, 300 570, 470 500 S 760 380, 1400 430" fill="none" stroke="#12304a" stroke-width="20" stroke-linecap="round"/>';
+  [[-200,260,1200,230],[-200,560,1200,600],[300,-200,330,1100],[700,-200,640,1100],[-200,820,1200,860],[-200,100,1200,90]].forEach(function (l) {
+    html += '<line x1="' + l[0] + '" y1="' + l[1] + '" x2="' + l[2] + '" y2="' + l[3] + '" stroke="#1b222c" stroke-width="3"/>';
+  });
+  TOWNS.forEach(function (t, i) { html += '<polygon class="town t' + t.tier + '" data-i="' + i + '" points="' + pstr(t.pts) + '"/>'; });
+  LINES.forEach(function (l) { html += '<polyline class="rail" points="' + pstr(l) + '"/>'; });
+  html += '<path id="hi" d=""/><path id="rline" class="ruler-line" d=""/>';
+  TOWNS.forEach(function (t) {
+    html += '<g class="mk lbl" data-x="' + t.cx.toFixed(1) + '" data-y="' + t.cy.toFixed(1) + '"><text y="4">' + t.name + '</text></g>';
+  });
+  STATIONS.forEach(function (s, i) {
+    html += '<g class="mk" data-x="' + s.x + '" data-y="' + s.y + '"><circle class="stn" data-s="' + i + '" r="14" fill="transparent"/>' +
+            '<circle r="5" fill="#fff" stroke="#ab47bc" stroke-width="2" pointer-events="none"/></g>';
+  });
+  html += '<g class="mk" id="pinG" data-x="0" data-y="0" style="display:none"><circle r="8" fill="#4c8dff" stroke="#fff" stroke-width="2.5"/></g>';
+  html += '<g class="mk" id="rA" data-x="0" data-y="0" style="display:none"><circle r="5" fill="#fff" stroke="#4c8dff" stroke-width="2"/></g>';
+  html += '<g class="mk" id="rB" data-x="0" data-y="0" style="display:none"><circle r="5" fill="#fff" stroke="#4c8dff" stroke-width="2"/></g>';
+  html += '<g class="mk" id="locG" data-x="470" data-y="400" style="display:none"><circle class="pulse" r="20" fill="rgba(76,141,255,.35)"/><circle r="7.5" fill="#4c8dff" stroke="#fff" stroke-width="2.5"/></g>';
+  world.innerHTML = html;
+  var hiEl = $('#hi'), rlineEl = $('#rline');
+
+  // ---------- popups ----------
+  var popups = [];
+  function makePopup(anchor) {
+    var el = document.createElement('div'); el.className = 'popup'; el.style.display = 'none'; stage.appendChild(el);
+    var p = { el: el, x: 0, y: 0, anchor: anchor || 'top' };
+    p.set = function (x, y, h) { p.x = x; p.y = y; el.innerHTML = h; el.style.display = 'block'; p.place(); };
+    p.hide = function () { el.style.display = 'none'; };
+    p.place = function () {
+      var s = toScreen(p.x, p.y);
+      el.style.left = s.x + 'px'; el.style.top = s.y + 'px';
+      el.style.transform = p.anchor === 'top' ? 'translate(-50%, 10px)' : 'translate(-50%, calc(-100% - 12px))';
+    };
+    popups.push(p); return p;
+  }
+  var stnPop = makePopup('bottom'), pinPop = makePopup('bottom'), rulerPop = makePopup('top');
+
+  // ---------- view math ----------
+  function size() { return { w: stage.clientWidth, h: stage.clientHeight }; }
+  function toScreen(wx, wy) { var z = size(), v = S.view; return { x: z.w / 2 + (wx - v.cx) * v.scale, y: z.h / 2 + (wy - v.cy) * v.scale }; }
+  function toWorld(px, py) {
+    var rect = svg.getBoundingClientRect(), z = size(), v = S.view;
+    return { x: v.cx + (px - rect.left - z.w / 2) / v.scale, y: v.cy + (py - rect.top - z.h / 2) / v.scale };
+  }
+  function applyView() {
+    var z = size(), v = S.view, vw = z.w / v.scale, vh = z.h / v.scale;
+    svg.setAttribute('viewBox', (v.cx - vw / 2) + ' ' + (v.cy - vh / 2) + ' ' + vw + ' ' + vh);
+    var k = 1 / v.scale;
+    world.querySelectorAll('.mk').forEach(function (g) { g.setAttribute('transform', 'translate(' + g.dataset.x + ' ' + g.dataset.y + ') scale(' + k + ')'); });
+    popups.forEach(function (p) { if (p.el.style.display !== 'none') p.place(); });
+  }
+  function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function animateTo(target, ms) {
+    if (S.anim) cancelAnimationFrame(S.anim);
+    if (!ms) { S.view = target; applyView(); return; }
+    var from = { cx: S.view.cx, cy: S.view.cy, scale: S.view.scale }, t0 = performance.now();
+    (function step(now) {
+      var t = clamp((now - t0) / ms, 0, 1), e = ease(t);
+      S.view = { cx: from.cx + (target.cx - from.cx) * e, cy: from.cy + (target.cy - from.cy) * e,
+                 scale: from.scale * Math.pow(target.scale / from.scale, e) };
+      applyView();
+      if (t < 1) S.anim = requestAnimationFrame(step); else S.anim = null;
+    })(t0);
+  }
+
+  // Heights of the mobile sheet (px) per resting position
+  function sheetHeights() { var z = size(); return { collapsed: 104, half: Math.round(z.h * 0.5), full: Math.round(z.h * 0.92) }; }
+  function insets(snap) {
+    if (S.mode === 'web') return { l: S.panelOpen ? 356 : 0, b: 0 };
+    return { l: 0, b: sheetHeights()[snap] + 8 };
+  }
+  function focusBBox(b, snap, ms) {
+    var z = size(), ins = insets(snap), top = S.mode === 'mobile' ? 70 : 0;
+    var aw = z.w - ins.l - 48, ah = z.h - ins.b - top - 48;
+    var sc = clamp(Math.min(aw / (b.x1 - b.x0), ah / (b.y1 - b.y0)), 0.3, 2.2);
+    var px = ins.l + (z.w - ins.l) / 2, py = top + (z.h - ins.b - top) / 2;
+    var mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2;
+    animateTo({ cx: mx - (px - z.w / 2) / sc, cy: my - (py - z.h / 2) / sc, scale: sc }, ms);
+  }
+  var GRID = { x0: X0 - 20, y0: Y0 - 20, x1: X0 + COLS * CW + 20, y1: Y0 + ROWS * CH + 20 };
+  function refocus(ms) {
+    if (S.town) focusBBox(S.town.bbox, S.mode === 'mobile' ? 'half' : 'half', ms);
+    else focusBBox(GRID, S.mode === 'mobile' ? 'collapsed' : 'half', ms);
+  }
+
+  // ---------- map interaction: pan, zoom, click ----------
+  var drag = null;
+  svg.addEventListener('pointerdown', function (e) {
+    if (S.anim) { cancelAnimationFrame(S.anim); S.anim = null; }
+    drag = { x: e.clientX, y: e.clientY, cx: S.view.cx, cy: S.view.cy, target: e.target, moved: false, id: e.pointerId };
+  });
+  svg.addEventListener('pointermove', function (e) {
+    if (drag) {
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) > 5) { drag.moved = true; try { svg.setPointerCapture(drag.id); } catch (err) {} hoverEl.style.display = 'none'; }
+      if (drag.moved) { S.view.cx = drag.cx - dx / S.view.scale; S.view.cy = drag.cy - dy / S.view.scale; applyView(); }
+      return;
+    }
+    if (e.pointerType === 'mouse' && S.mode === 'web' && e.target.classList.contains('town')) {
+      var rect = stage.getBoundingClientRect();
+      hoverEl.textContent = TOWNS[+e.target.dataset.i].name;
+      hoverEl.style.left = (e.clientX - rect.left) + 'px'; hoverEl.style.top = (e.clientY - rect.top) + 'px'; hoverEl.style.display = 'block';
+    } else { hoverEl.style.display = 'none'; }
+  });
+  svg.addEventListener('pointerleave', function () { hoverEl.style.display = 'none'; });
+  function endDrag(e) {
+    if (!drag) return;
+    var d = drag; drag = null;
+    if (!d.moved) mapClick(d.target, e.clientX, e.clientY);
+  }
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', function () { drag = null; });
+  svg.addEventListener('wheel', function (e) { e.preventDefault(); zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.2 : 1 / 1.2); }, { passive: false });
+
+  function zoomAt(px, py, f) {
+    if (S.anim) { cancelAnimationFrame(S.anim); S.anim = null; }
+    var w0 = toWorld(px, py), z = size(), rect = svg.getBoundingClientRect(), v = S.view;
+    var ns = clamp(v.scale * f, 0.3, 6);
+    v.cx = w0.x - (px - rect.left - z.w / 2) / ns; v.cy = w0.y - (py - rect.top - z.h / 2) / ns; v.scale = ns;
+    applyView();
+  }
+  $('#zin').addEventListener('click', function () { var r = stage.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.5); });
+  $('#zout').addEventListener('click', function () { var r = stage.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.5); });
+
+  function mapClick(target, cx, cy) {
+    closeInfo();
+    if (S.ruler.active) { rulerClick(toWorld(cx, cy)); return; }
+    stnPop.hide();
+    if (target.classList && target.classList.contains('stn')) {
+      var s = STATIONS[+target.dataset.s]; stnPop.set(s.x, s.y, '<b>' + s.name + ' &mdash; ' + s.muni + '</b>'); return;
+    }
+    if (target.classList && target.classList.contains('town')) selectTown(TOWNS[+target.dataset.i].name);
+  }
+
+  // ---------- selecting towns ----------
+  townSel.innerHTML = '<option value="">&mdash; Select a town &mdash;</option>' +
+    NAMES.slice().sort().map(function (n) { return '<option>' + n + '</option>'; }).join('');
+  townSel.addEventListener('change', function () { if (townSel.value) selectTown(townSel.value); else clearTown(); });
+
+  function money(n) { return n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : '$' + Math.round(n / 1000) + 'K'; }
+  function ordSuffix(n) { var m = n % 100; if (m >= 11 && m <= 13) return 'th'; return ['th','st','nd','rd'][n % 10] || 'th'; }
+  function row(l, v) { return '<div class="row"><span>' + l + '</span><b>' + v + '</b></div>'; }
+  var TIER_TXT = { 1: 'Tier 1 · above 70th percentile', 2: 'Tier 2 · 50–69th percentile', 0: 'Below 50th percentile' };
+  var TIER_COL = { 1: '#009688', 2: '#ab47bc', 0: '#6b7585' };
+
+  function renderCard(t) {
+    var chg = (t.chg >= 0 ? '+' : '') + t.chg.toFixed(1) + '%';
+    cardEl.innerHTML =
+      '<div class="c-head"><span class="dot" style="background:' + TIER_COL[t.tier] + '"></span>' +
+        '<div><h2>' + t.name + '</h2><p>' + t.district + '</p><span class="chip t' + t.tier + '">' + TIER_TXT[t.tier] + '</span></div>' +
+        '<button class="x" id="cardX" type="button" title="Close">&times;</button></div>' +
+      '<div class="c-sec"><h3>Housing</h3>' +
+        row('Typical 3-bed home', money(t.price) + '<em class="' + (t.chg >= 0 ? 'up' : 'down') + '">' + chg + '</em>') +
+        row('Property tax rate', t.tax.toFixed(2) + '%') + '</div>' +
+      '<div class="c-sec"><h3>Schools</h3>' +
+        '<div class="score"><b>' + t.pct + '<sup>' + ordSuffix(t.pct) + '</sup></b><span>percentile overall</span></div>' +
+        '<div class="bar"><i style="width:' + t.pct + '%;background:' + TIER_COL[t.tier] + '"></i></div>' +
+        row('MCAS · AP · SAT', t.mcas + ' · ' + t.ap + ' · ' + t.sat) +
+        row('College-bound', t.college + '%') +
+        row('High school size', t.size.toLocaleString()) + '</div>' +
+      '<div class="c-links"><a href="https://www.redfin.com/" target="_blank" rel="noopener">Redfin</a>' +
+        '<a href="https://www.niche.com/places-to-live/search/best-places-to-live/" target="_blank" rel="noopener">Niche</a></div>';
+    $('#cardX').addEventListener('click', clearTown);
+  }
+
+  function selectTown(name, instant) {
+    var t = TOWNS.filter(function (x) { return x.name === name; })[0];
+    if (!t) return clearTown();
+    S.town = t; townSel.value = name;
+    hiEl.setAttribute('d', 'M' + t.pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' L') + ' Z');
+    renderCard(t); cardEl.hidden = false; pbody.scrollTop = 0;
+    if (S.mode === 'web') setPanel(true, instant); else setSheet('half', instant);
+    refocus(instant ? 0 : 500);
+  }
+  function clearTown() {
+    S.town = null; townSel.value = ''; hiEl.setAttribute('d', ''); cardEl.hidden = true;
+    refocus(500);
+  }
+
+  // ---------- address search (fake geocoder) ----------
+  var pinPopHtml = '';
+  $('#findBtn').addEventListener('click', function () {
+    var q = addrEl.value.trim(), btn = $('#findBtn');
+    if (!q) { toast('Please enter an address.'); return; }
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Searching…';
+    setTimeout(function () {
+      var h = 0; for (var i = 0; i < q.length; i++) h = (h * 31 + q.charCodeAt(i)) % 9973;
+      var t = TOWNS[h % TOWNS.length], x = t.cx + (rnd(h) - .5) * 60, y = t.cy + (rnd(h + 5) - .5) * 60;
+      var pg = $('#pinG'); pg.dataset.x = x; pg.dataset.y = y; pg.style.display = '';
+      pinPopHtml = '<b>' + q.replace(/</g, '&lt;') + '</b><small>' + t.name + ', MA (sample result)</small>';
+      pinPop.set(x, y, pinPopHtml);
+      btn.disabled = false; btn.textContent = 'Find address';
+      var b = { x0: x - 70, y0: y - 70, x1: x + 70, y1: y + 70 };
+      if (S.mode === 'mobile') setSheet('collapsed');
+      focusBBox(b, S.mode === 'mobile' ? 'collapsed' : 'half', 500); applyView();
+    }, 700);
+  });
+  addrEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#findBtn').click(); });
+
+  $('#resetBtn').addEventListener('click', function () {
+    S.town = null; townSel.value = ''; addrEl.value = ''; hiEl.setAttribute('d', ''); cardEl.hidden = true;
+    $('#pinG').style.display = 'none'; pinPop.hide(); stnPop.hide(); clearRuler();
+    if (S.mode === 'mobile') setSheet('collapsed');
+    refocus(500);
+  });
+
+  // ---------- ruler ----------
+  var rulerBtn = $('#rulerBtn');
+  function clearRuler() {
+    S.ruler.a = null; rlineEl.setAttribute('d', '');
+    $('#rA').style.display = 'none'; $('#rB').style.display = 'none'; rulerPop.hide();
+  }
+  function setRuler(on) { S.ruler.active = on; rulerBtn.classList.toggle('active', on); svg.classList.toggle('measuring', on); }
+  rulerBtn.addEventListener('click', function (e) {
+    e.stopPropagation(); clearRuler(); closeInfo(); stnPop.hide();
+    if (S.ruler.active) { setRuler(false); return; }
+    setRuler(true); toast('Click point A, then point B');
+  });
+  function rulerClick(p) {
+    if (!S.ruler.a) {
+      S.ruler.a = p; var a = $('#rA'); a.dataset.x = p.x; a.dataset.y = p.y; a.style.display = ''; applyView(); return;
+    }
+    var A = S.ruler.a, B = p, b = $('#rB'); b.dataset.x = B.x; b.dataset.y = B.y; b.style.display = '';
+    rlineEl.setAttribute('d', 'M' + A.x + ',' + A.y + ' L' + B.x + ',' + B.y);
+    var straight = Math.hypot(B.x - A.x, B.y - A.y) / MILE, drive = straight * 1.28, mins = Math.max(1, Math.round(drive / 28 * 60));
+    function fmt(m) { return m < 0.1 ? Math.round(m * 5280) + ' ft' : m.toFixed(2) + ' mi'; }
+    rulerPop.set((A.x + B.x) / 2, (A.y + B.y) / 2, '<b>' + fmt(drive) + ' driving</b><small>' + mins + ' min · ' + fmt(straight) + ' straight-line (sample)</small>');
+    setRuler(false); applyView();
+  }
+
+  // ---------- info / locate / mode toggle ----------
+  var infoPop = $('#infoPop');
+  function closeInfo() { infoPop.classList.remove('open'); }
+  $('#infoBtn').addEventListener('click', function (e) { e.stopPropagation(); infoPop.classList.toggle('open'); });
+  infoPop.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.addEventListener('click', closeInfo);
+
+  $('#locBtn').addEventListener('click', function () {
+    S.located = !S.located; $('#locBtn').classList.toggle('active', S.located);
+    var g = $('#locG'); g.style.display = S.located ? '' : 'none';
+    if (S.located) {
+      toast('Location is simulated in this mockup');
+      var z = size(), ins = insets(S.mode === 'mobile' ? S.sheet === 'full' ? 'half' : S.sheet : 'half');
+      var sc = Math.max(S.view.scale, 1.1), px = ins.l + (z.w - ins.l) / 2, py = (z.h - ins.b) / 2;
+      animateTo({ cx: 470 - (px - z.w / 2) / sc, cy: 400 - (py - z.h / 2) / sc, scale: sc }, 500);
+    }
+  });
+
+  var ICON_PHONE = '<svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>';
+  var ICON_DESK = '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>';
+  var modeBtn = $('#modeBtn');
+  function setMode(m, instant) {
+    S.mode = m; app.className = 'mode-' + m + (S.panelOpen ? '' : ' panel-closed');
+    modeBtn.innerHTML = m === 'web' ? ICON_PHONE : ICON_DESK;
+    modeBtn.title = m === 'web' ? 'Switch to mobile layout' : 'Switch to web layout';
+    if (m === 'mobile') { panel.style.height = ''; setSheet(S.sheet, true); } else { panel.style.height = ''; }
+    applyView(); refocus(instant ? 0 : 450);
+  }
+  modeBtn.addEventListener('click', function () {
+    var next = S.mode === 'web' ? 'mobile' : 'web';
+    try { localStorage.setItem('mode', next); } catch (e) {}
+    setMode(next);
+  });
+
+  // ---------- web sidebar open / close ----------
+  function setPanel(open, instant) {
+    S.panelOpen = open; app.classList.toggle('panel-closed', !open && S.mode === 'web');
+    if (!instant) refocus(450);
+  }
+  $('#collapseBtn').addEventListener('click', function () { setPanel(false); });
+  $('#expandTab').addEventListener('click', function () { setPanel(true); });
+
+  // ---------- mobile bottom sheet ----------
+  function setSheet(snap, instant) {
+    S.sheet = snap;
+    if (S.mode !== 'mobile') return;
+    panel.style.transition = instant ? 'none' : 'height .3s cubic-bezier(.2,.8,.2,1)';
+    panel.style.height = sheetHeights()[snap] + 'px';
+    panel.dataset.snap = snap;
+  }
+  var sd = null;
+  function sheetDown(e) {
+    if (S.mode !== 'mobile') return;
+    if (e.target.closest('a, button')) return;
+    sd = { y: e.clientY, h: panel.getBoundingClientRect().height, last: e.clientY, lastT: performance.now(), v: 0, moved: false, id: e.pointerId, el: e.currentTarget };
+  }
+  function sheetMove(e) {
+    if (!sd) return;
+    var dy = e.clientY - sd.y;
+    if (!sd.moved && Math.abs(dy) > 4) { sd.moved = true; try { sd.el.setPointerCapture(sd.id); } catch (err) {} panel.style.transition = 'none'; }
+    if (!sd.moved) return;
+    var H = sheetHeights(), now = performance.now();
+    sd.v = (e.clientY - sd.last) / Math.max(1, now - sd.lastT); sd.last = e.clientY; sd.lastT = now;
+    panel.style.height = clamp(sd.h - dy, H.collapsed, H.full) + 'px';
+  }
+  function sheetUp() {
+    if (!sd) return;
+    var d = sd; sd = null;
+    var H = sheetHeights();
+    if (!d.moved) { setSheet(S.sheet === 'collapsed' ? 'half' : S.sheet === 'half' ? 'full' : 'collapsed'); return; }
+    var proj = panel.getBoundingClientRect().height - d.v * 220, best = 'collapsed', bd = 1e9;
+    ['collapsed', 'half', 'full'].forEach(function (k) { var dd = Math.abs(H[k] - proj); if (dd < bd) { bd = dd; best = k; } });
+    setSheet(best);
+  }
+  ['#grip', '#phead'].forEach(function (s) {
+    var el = $(s);
+    el.addEventListener('pointerdown', sheetDown); el.addEventListener('pointermove', sheetMove);
+    el.addEventListener('pointerup', sheetUp); el.addEventListener('pointercancel', function () { sd = null; });
+  });
+  $('#mSearch').addEventListener('click', function () { setSheet('full'); setTimeout(function () { addrEl.focus(); }, 320); });
+
+  // ---------- misc ----------
+  var toastT;
+  function toast(msg) { toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('show'); }, 2600); }
+
+  window.addEventListener('resize', function () {
+    if (S.mode === 'mobile') setSheet(S.sheet, true);
+    applyView();
+  });
+
+  // ---------- init ----------
+  var stored = null; try { stored = localStorage.getItem('mode'); } catch (e) {}
+  var mode = params.mobile !== undefined ? 'mobile' : params.web !== undefined ? 'web' : (stored || (window.innerWidth < 768 ? 'mobile' : 'web'));
+  S.sheet = params.sheet || 'half';
+  S.panelOpen = params.closed === undefined;
+  setMode(mode, true);
+  if (params.town) selectTown(params.town, true);
+  if (params.info !== undefined) infoPop.classList.add('open');
+  if (params.stn) { var si = STATIONS[+params.stn]; stnPop.set(si.x, si.y, '<b>' + si.name + ' &mdash; ' + si.muni + '</b>'); }
+  if (params.locate !== undefined) $('#locBtn').click();
+  applyView();
+})();
+</script>
+</body>
+</html>
