@@ -68,7 +68,7 @@ about_ui <- function() {
       ),
       tags$p(class = "about-sub", "How to use it"),
       tags$ol(
-        tags$li("Shortlist towns with strong schools (shaded green or purple)."),
+        tags$li("Shortlist towns with strong schools (shaded green or purple). Tap the star on a town's details to save it, then compare or download your list in the Saved tab."),
         tags$li("Check the commute: tap Transit on the map to show commuter rail and T lines, or use the ruler for driving time."),
         tags$li(
           "Check home prices and taxes in the town's details, then search listings on ",
@@ -134,6 +134,7 @@ about_ui <- function() {
   )
 }
 
+star_icon <- HTML('<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>')
 explore_icon <- HTML('<svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>')
 about_icon <- HTML('<svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>')
 
@@ -208,13 +209,37 @@ ui <- bootstrapPage(
             tags$p(class = "hint", "Tap a town on the map to see its details here.")
           )
         ),
+        # Starred towns: the list is kept in the browser (layout.js) and sent
+        # here as input$saved_towns
+        tags$div(
+          id = "saved-view", class = "p-body is-empty", `data-view` = "saved",
+          tags$section(
+            class = "box saved",
+            tags$h4("Saved towns"),
+            uiOutput("saved_table"),
+            tags$div(
+              class = "btns saved-actions",
+              downloadButton("saved_csv", "Download CSV", class = "btn-primary", icon = NULL),
+              tags$button(id = "saved-share", type = "button", class = "btn btn-default", "Copy share link")
+            ),
+            tags$p(
+              class = "hint",
+              "Saved in this browser only. Open a share link on another device to bring your list along."
+            )
+          )
+        ),
         tags$div(id = "about-view", class = "p-body", `data-view` = "about", about_ui()),
-        # Explore / About switch (styled like the MBTA app's tab bar)
+        # Explore / Saved / About switch (styled like the MBTA app's tab bar)
         tags$nav(
           id = "tabbar", class = "tabbar", role = "tablist",
           tags$button(
             type = "button", role = "tab", class = "active", `aria-selected` = "true", `data-tab` = "explore",
             explore_icon, tags$span("Explore")
+          ),
+          tags$button(
+            type = "button", role = "tab", `aria-selected` = "false", `data-tab` = "saved",
+            tags$span(class = "tab-icon", star_icon, tags$span(id = "saved-count", class = "tab-count", style = "display:none")),
+            tags$span("Saved")
           ),
           tags$button(
             type = "button", role = "tab", `aria-selected` = "false", `data-tab` = "about",
@@ -365,13 +390,19 @@ full_bbox <- unname(as.numeric(st_bbox(towns_map)))
 
 # ---- Town details card ----
 fmt_or_na <- function(x, f) if (is.null(x) || length(x) == 0 || is.na(x)) "N/A" else f(x)
+fmt_home <- function(v) if (v >= 1e6) sprintf("$%.2fM", v / 1e6) else paste0("$", round(v / 1000), "K")
 
-town_card_ui <- function(t) {
-  tier <- dplyr::case_when(
-    t$fill_color == "#009688" ~ 1L,
-    t$fill_color == "#AB47BC" ~ 2L,
+# School tier from the town's fill color (set in 02_preprocessing.R): 1, 2 or 0
+tier_of <- function(fill_color) {
+  dplyr::case_when(
+    fill_color == "#009688" ~ 1L,
+    fill_color == "#AB47BC" ~ 2L,
     TRUE ~ 0L
   )
+}
+
+town_card_ui <- function(t, saved = FALSE) {
+  tier <- tier_of(t$fill_color)
   tier_txt <- c("Below Tier 2", "Tier 1 · above 70th percentile", "Tier 2 · 50–69th percentile")[tier + 1]
   tier_col <- c("#6B7585", "#009688", "#AB47BC")[tier + 1]
 
@@ -396,10 +427,20 @@ town_card_ui <- function(t) {
         )),
         tags$span(class = paste0("chip t", tier), tier_txt)
       ),
-      tags$button(
-        class = "c-close", type = "button", title = "Close",
-        onclick = "Shiny.setInputValue('card_close', Date.now(), {priority: 'event'})",
-        HTML("&times;")
+      tags$div(
+        class = "c-actions",
+        # Handled by layout.js, which keeps the saved list
+        tags$button(
+          class = if (saved) "c-star saved" else "c-star", type = "button", `data-star` = t$town_name,
+          title = if (saved) "Remove from saved towns" else "Save this town",
+          `aria-pressed` = if (saved) "true" else "false",
+          star_icon
+        ),
+        tags$button(
+          class = "c-close", type = "button", title = "Close",
+          onclick = "Shiny.setInputValue('card_close', Date.now(), {priority: 'event'})",
+          HTML("&times;")
+        )
       )
     ),
     tags$div(
@@ -407,9 +448,7 @@ town_card_ui <- function(t) {
       tags$h3("Housing"),
       row(
         "Typical 3-bed home",
-        fmt_or_na(t$current_typ_home_value, function(v) {
-          if (v >= 1e6) sprintf("$%.2fM", v / 1e6) else paste0("$", round(v / 1000), "K")
-        }),
+        fmt_or_na(t$current_typ_home_value, fmt_home),
         chg_tag
       ),
       row("Property tax rate", fmt_or_na(t$prop_rate, function(v) scales::percent(v, accuracy = 0.01)))
@@ -436,6 +475,60 @@ town_card_ui <- function(t) {
       tags$a(href = redfin_url, target = "_blank", rel = "noopener", "Redfin"),
       tags$a(href = niche_url, target = "_blank", rel = "noopener", "Niche")
     )
+  )
+}
+
+# ---- Saved towns (Saved tab table + CSV) ----
+# Rows are clickable (layout.js opens the town); the × un-stars it
+saved_table_ui <- function(s) {
+  if (nrow(s) == 0) {
+    return(tags$p(class = "saved-empty", "No saved towns yet. Tap the star on a town's details to add it here."))
+  }
+  tier_col <- c("#6B7585", "#009688", "#AB47BC")
+  tags$table(
+    class = "saved-table",
+    tags$thead(tags$tr(
+      tags$th("Town"), tags$th("Score"), tags$th("Home"), tags$th("Tax"), tags$th()
+    )),
+    tags$tbody(lapply(seq_len(nrow(s)), function(i) {
+      t <- s[i, ]
+      tags$tr(
+        `data-saved-town` = t$town_name, title = paste("Show", t$town_name),
+        tags$td(
+          class = "s-town",
+          tags$span(class = "c-dot", style = paste0("background:", tier_col[tier_of(t$fill_color) + 1])),
+          t$town_name
+        ),
+        tags$td(fmt_or_na(t$normalized_school_score, function(v) round(v))),
+        tags$td(fmt_or_na(t$current_typ_home_value, fmt_home)),
+        tags$td(fmt_or_na(t$prop_rate, function(v) scales::percent(v, accuracy = 0.01))),
+        tags$td(tags$button(
+          class = "s-remove", type = "button", `data-star` = t$town_name,
+          title = paste("Remove", t$town_name), HTML("&times;")
+        ))
+      )
+    }))
+  )
+}
+
+# Every attribute for the CSV, with readable column names
+saved_csv_data <- function(s) {
+  data.frame(
+    `Town` = s$town_name,
+    `School district` = s$DIST_NAME,
+    `School tier` = c("Below Tier 2", "Tier 1", "Tier 2")[tier_of(s$fill_color) + 1],
+    `School score (0-100)` = round(s$normalized_school_score, 1),
+    `MCAS percentile` = round(s$mcas_rank * 100),
+    `AP percentile` = round(s$ap_rank * 100),
+    `SAT percentile` = round(s$sat_rank * 100),
+    `College-bound (%)` = round(s$college_bound_rate * 100, 1),
+    `High school size (est.)` = s$school_size_est,
+    `Typical 3-bed home value ($)` = round(s$current_typ_home_value),
+    `1-year price change (%)` = round(s$one_year_price_change, 1),
+    `Property tax rate (%)` = round(s$prop_rate * 100, 2),
+    `Density (people/sq mi)` = round(s$density),
+    `Density category` = s$dens_cat,
+    check.names = FALSE
   )
 }
 
@@ -570,11 +663,32 @@ server <- function(input, output, session) {
     if (nrow(t) == 0) {
       return(NULL)
     }
-    town_card_ui(t[1, ])
+    town_card_ui(t[1, ], saved = name %in% saved_towns())
   })
   # The card is hidden by CSS while empty; keep rendering it anyway, or Shiny
   # would suspend the hidden output and it could never appear
   outputOptions(output, "town_card", suspendWhenHidden = FALSE)
+
+  # ---- Saved towns ----
+  # layout.js sends the browser's list on connect and after every change.
+  # Names that aren't towns (e.g. a mistyped share link) are dropped.
+  saved_towns <- reactive({
+    intersect(as.character(unlist(input$saved_towns)), town_info$town_name)
+  })
+  # Best schools first
+  saved_info <- reactive({
+    town_info |>
+      filter(town_name %in% saved_towns()) |>
+      arrange(desc(normalized_school_score), town_name)
+  })
+
+  output$saved_table <- renderUI(saved_table_ui(saved_info()))
+  outputOptions(output, "saved_table", suspendWhenHidden = FALSE)
+
+  output$saved_csv <- downloadHandler(
+    filename = function() paste0("saved_towns_", Sys.Date(), ".csv"),
+    content = function(file) utils::write.csv(saved_csv_data(saved_info()), file, row.names = FALSE, na = "")
+  )
 
   # ---- Address lookup (MapTiler only) -> pin + zoom ----
   searching <- reactiveVal(FALSE)

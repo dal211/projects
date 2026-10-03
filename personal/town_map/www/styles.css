@@ -200,8 +200,10 @@ a:hover, a:focus { color: inherit; }
 .panel { position: absolute; z-index: 20; background: var(--panel); display: flex; flex-direction: column;
   box-shadow: 0 8px 30px var(--shadow); overflow: hidden; }
 .mode-mobile .panel { left: 8px; right: 8px; bottom: 8px; height: 50%; border-radius: 26px; }
-.mode-web .panel { top: 12px; left: 12px; bottom: 12px; width: 332px; border-radius: 18px;
+/* Web: hugs its content, growing to the full height (then scrolling) as needed */
+.mode-web .panel { top: 12px; left: 12px; max-height: calc(100% - 24px); width: 332px; border-radius: 18px;
   transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
+.mode-web .p-body { flex: 0 1 auto; }
 .mode-web.panel-closed .panel { transform: translateX(calc(-100% - 24px)); }
 
 .grip { display: none; height: 28px; flex: none; align-items: center; justify-content: center; cursor: grab; touch-action: none; }
@@ -289,9 +291,10 @@ a:hover, a:focus { color: inherit; }
 .panel .btn:hover, .panel .btn:focus { background: var(--btn-hover); color: var(--text); }
 .panel .btn.btn-primary { background: var(--accent); color: #fff; }
 .panel .btn.btn-primary:hover, .panel .btn.btn-primary:focus { background: var(--accent-hover); color: #fff; }
-/* ---------- Explore / About views and tab bar ---------- */
-.panel[data-view="explore"] .p-body[data-view="about"],
-.panel[data-view="about"] .p-body[data-view="explore"] { display: none; }
+/* ---------- Explore / Saved / About views and tab bar ---------- */
+.panel:not([data-view="explore"]) .p-body[data-view="explore"],
+.panel:not([data-view="saved"]) .p-body[data-view="saved"],
+.panel:not([data-view="about"]) .p-body[data-view="about"] { display: none; }
 .tabbar { flex: none; display: flex; gap: 4px; margin: 4px 14px 10px; padding: 4px; border-radius: 99px;
   background: var(--btn-soft); }
 .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 0;
@@ -300,6 +303,28 @@ a:hover, a:focus { color: inherit; }
 .tabbar button:hover { color: var(--text); }
 .tabbar button.active { background: var(--panel); color: var(--accent); box-shadow: 0 1px 4px var(--shadow); }
 .tabbar svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tab-icon { position: relative; display: block; height: 20px; }
+.tab-count { position: absolute; top: -5px; left: 13px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px;
+  background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+
+/* ---------- Saved tab ---------- */
+.saved-empty { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+#saved-view.is-empty .saved-actions { display: none; }
+.saved-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.saved-table th { text-align: right; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); padding: 0 6px 6px; }
+.saved-table th:first-child, .saved-table td:first-child { text-align: left; padding-left: 0; }
+.saved-table td { text-align: right; padding: 8px 6px; border-top: 1px solid var(--card-line); white-space: nowrap; }
+.saved-table td:last-child { width: 1px; padding-right: 0; }
+.saved-table tbody tr { cursor: pointer; }
+.saved-table tbody tr:hover td { background: var(--btn-soft); }
+.saved-table .s-town { font-weight: 600; white-space: normal; }
+.saved-table .s-town .c-dot { display: inline-block; width: 8px; height: 8px; margin: 0 7px 1px 0; vertical-align: middle; }
+.s-remove { border: 0; background: transparent; color: var(--muted); width: 24px; height: 24px; border-radius: 7px;
+  cursor: pointer; font-size: 16px; line-height: 1; padding: 0; }
+.s-remove:hover { background: var(--btn-hover); color: var(--text); }
+.saved .btns { margin-top: 14px; }
+.saved .btns .btn { white-space: nowrap; }
 
 .about p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; }
 .about p:last-child { margin-bottom: 0; }
@@ -333,7 +358,14 @@ a:hover, a:focus { color: inherit; }
 .c-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 8px; flex: none; }
 .c-head h2 { margin: 0; font-size: 21px; line-height: 1.2; font-weight: 700; color: var(--text); }
 .c-head p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-.c-close { margin-left: auto; border: 0; background: var(--btn-soft); color: var(--text); width: 28px; height: 28px;
+.c-actions { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.c-star { border: 0; background: var(--btn-soft); color: var(--muted); width: 28px; height: 28px; border-radius: 9px;
+  cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; }
+.c-star:hover { background: var(--btn-hover); color: var(--text); }
+.c-star svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.c-star.saved, .c-star.saved:hover { color: #F5B301; }
+.c-star.saved svg { fill: currentColor; }
+.c-close { border: 0; background: var(--btn-soft); color: var(--text); width: 28px; height: 28px;
   border-radius: 9px; cursor: pointer; font-size: 17px; line-height: 1; flex: none; padding: 0; }
 .c-close:hover { background: var(--btn-hover); }
 .chip { display: inline-block; margin-top: 6px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }

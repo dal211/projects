@@ -197,6 +197,68 @@
     applyTransit();
   }
 
+  // ---------- saved (starred) towns ----------
+  // The list lives in this browser. The server gets it as input$saved_towns and
+  // builds the Saved tab's table, the CSV and the card's star state from it.
+  // A ?saved=Town,Town link (from "Copy share link") adds its towns to the list.
+  var SAVED_KEY = 'townmap-saved';
+  state.saved = (function () {
+    var s = null;
+    try { s = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'); } catch (e) {}
+    return Array.isArray(s) ? s.filter(function (x) { return typeof x === 'string'; }) : [];
+  })();
+  state.sharedAdded = 0;
+  (function () {
+    var search = location.search;
+    try { if (window.top !== window) search = window.top.location.search || search; } catch (e) {} // shinyapps.io wraps the app in an iframe
+    var shared = new URLSearchParams(search).get('saved');
+    if (!shared) return;
+    shared.split(',').forEach(function (t) {
+      t = t.trim();
+      if (t && state.saved.indexOf(t) < 0) { state.saved.push(t); state.sharedAdded++; }
+    });
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(state.saved)); } catch (e) {}
+  })();
+
+  function sendSaved() {
+    if (window.Shiny && Shiny.setInputValue) Shiny.setInputValue('saved_towns', state.saved);
+  }
+  function updateSavedUI() {
+    var n = state.saved.length, badge = $('#saved-count');
+    if (badge) { badge.textContent = n; badge.style.display = n ? '' : 'none'; }
+    var view = $('#saved-view');
+    if (view) view.classList.toggle('is-empty', !n);
+    // Flip stars right away; the server's re-render follows
+    document.querySelectorAll('.c-star[data-star]').forEach(function (b) {
+      var on = state.saved.indexOf(b.getAttribute('data-star')) >= 0;
+      b.classList.toggle('saved', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.title = on ? 'Remove from saved towns' : 'Save this town';
+    });
+  }
+  function toggleSaved(town) {
+    var i = state.saved.indexOf(town);
+    if (i >= 0) state.saved.splice(i, 1); else state.saved.push(town);
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(state.saved)); } catch (e) {}
+    updateSavedUI();
+    sendSaved();
+    toast(i >= 0 ? town + ' removed from saved towns' : town + ' saved');
+  }
+
+  // Link that recreates this list in another browser
+  function shareSaved() {
+    if (!state.saved.length) return;
+    var base = location.href;
+    try { if (window.top !== window) base = window.top.location.href; } catch (e) {}
+    var url = base.split(/[?#]/)[0] + '?saved=' + encodeURIComponent(state.saved.join(','));
+    function fallback() { window.prompt('Copy this link to open your saved towns elsewhere:', url); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { toast('Share link copied'); }, fallback);
+    } else {
+      fallback();
+    }
+  }
+
   function sendTheme() {
     if (!map || !window.Shiny || !Shiny.setInputValue) return;
     var want = state.theme;
@@ -246,7 +308,46 @@
       var cs = getComputedStyle(el);
       return sum + el.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
     }, 0);
-    return { collapsed: Math.max(peek, 72), half: Math.round(h * 0.5), full: Math.round(h * 0.92) };
+    var collapsed = Math.max(peek, 72);
+    // Half / full never open taller than the current view's content needs
+    var fit = Math.max(collapsed, peek + bodyHeight());
+    return {
+      collapsed: collapsed,
+      half: Math.min(Math.round(h * 0.5), fit),
+      full: Math.min(Math.round(h * 0.92), fit)
+    };
+  }
+
+  // Natural height of the visible view's content (the body itself stretches to
+  // fill the sheet, so measure its children instead). The body is hidden on a
+  // collapsed sheet; un-hide it just for the measurement, within one frame.
+  function bodyHeight() {
+    var p = $('#panel'), body = $('.p-body[data-view="' + (p && p.getAttribute('data-view')) + '"]');
+    if (!body) return 0;
+    var hidden = p.classList.contains('is-collapsed');
+    if (hidden) p.classList.remove('is-collapsed');
+    var top = body.getBoundingClientRect().top, bottom = 0;
+    Array.prototype.forEach.call(body.children, function (c) {
+      var r = c.getBoundingClientRect();
+      if (r.height) bottom = Math.max(bottom, r.bottom - top + body.scrollTop);
+    });
+    var h = bottom + parseFloat(getComputedStyle(body).paddingBottom);
+    if (hidden) p.classList.add('is-collapsed');
+    return Math.ceil(h);
+  }
+
+  // Re-fit the sheet after its content changes (town card, Saved table, tab switch)
+  var refitTimer;
+  function refitSheet() {
+    if (state.mode !== 'mobile' || drag) return;
+    clearTimeout(refitTimer);
+    refitTimer = setTimeout(function () {
+      if (state.mode !== 'mobile' || drag) return;
+      var p = $('#panel'), want = sheetHeights()[state.sheet];
+      if (Math.abs(p.getBoundingClientRect().height - want) < 2) return;
+      p.style.transition = 'height .3s cubic-bezier(.2,.8,.2,1)';
+      p.style.height = want + 'px';
+    }, 30);
   }
 
   function setSheet(snap, instant) {
@@ -255,10 +356,11 @@
     if (state.mode !== 'mobile') return;
     var p = $('#panel');
     p.style.transition = instant ? 'none' : 'height .3s cubic-bezier(.2,.8,.2,1)';
-    p.style.height = sheetHeights()[snap] + 'px';    p.classList.toggle('is-collapsed', snap === 'collapsed'); // hides the body so nothing peeks
+    p.style.height = sheetHeights()[snap] + 'px';
+    p.classList.toggle('is-collapsed', snap === 'collapsed'); // hides the body so nothing peeks
   }
 
-  // Explore (town picker + details) or About (methodology)
+  // Explore (town picker + details), Saved (starred towns) or About (methodology)
   function setView(view) {
     var p = $('#panel');
     if (!p || p.getAttribute('data-view') === view) return;
@@ -268,8 +370,9 @@
       b.classList.toggle('active', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    var body = view === 'about' ? $('#about-view') : $('#pbody');
+    var body = $('.p-body[data-view="' + view + '"]');
     if (body) body.scrollTop = 0;
+    refitSheet();
   }
 
   function setPanel(open) {
@@ -348,7 +451,10 @@
     var d = drag;
     drag = null;
     if (!d.moved) { // a tap cycles collapsed -> half -> full -> collapsed
-      setSheet(state.sheet === 'collapsed' ? 'half' : state.sheet === 'half' ? 'full' : 'collapsed');
+      // (skipping full when the content already fits at half)
+      var T = sheetHeights();
+      setSheet(state.sheet === 'collapsed' ? 'half'
+        : state.sheet === 'half' && T.full > T.half ? 'full' : 'collapsed');
       return;
     }
     // Snap to the nearest resting height, biased by flick speed
@@ -425,6 +531,24 @@
         if (state.mode === 'mobile' && state.sheet === 'collapsed') setSheet('half');
       });
     });
+    // Saved towns: stars (town card, Saved table) and table rows, delegated
+    // since the server re-renders both
+    updateSavedUI();
+    document.addEventListener('click', function (e) {
+      var star = e.target.closest('[data-star]');
+      if (star) { toggleSaved(star.getAttribute('data-star')); return; }
+      var row = e.target.closest('[data-saved-town]');
+      if (row) Shiny.setInputValue('town_click', { name: row.getAttribute('data-saved-town'), t: Date.now() }, { priority: 'event' });
+    });
+    $('#saved-share').addEventListener('click', shareSaved);
+    window.jQuery(document).on('shiny:connected', function () {
+      sendSaved();
+      if (state.sharedAdded) {
+        toast('Added ' + state.sharedAdded + ' town' + (state.sharedAdded > 1 ? 's' : '') + ' from a shared link');
+        setView('saved');
+      }
+    });
+
     $('#m-search').addEventListener('click', function () {
       setView('explore');
       setSheet('full');
@@ -437,6 +561,10 @@
     window.addEventListener('resize', function () {
       if (state.mode === 'mobile') setSheet(state.sheet, true);
     });
+    // Shiny re-renders the town card and Saved table in place; re-fit the sheet when they change
+    if (window.MutationObserver) {
+      new MutationObserver(refitSheet).observe($('#panel'), { childList: true, subtree: true });
+    }
   });
 
   // ---------- messages from the server ----------
