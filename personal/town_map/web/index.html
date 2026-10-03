@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Where to Live MA</title>
+  <meta name="description" content="Compare Massachusetts towns by school quality, home prices, taxes and commute.">
+  <!-- Theme before first paint, so there's no flash of the wrong colors -->
+  <script>
+    try { if (localStorage.getItem('townmap-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}
+    if (!document.documentElement.hasAttribute('data-theme')) document.documentElement.setAttribute('data-theme', 'light');
+  </script>
+  <link rel="preconnect" href="https://api.maptiler.com" crossorigin>
+  <!-- Same MapLibre version mapgl 0.5.0 bundled for the Shiny app -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+<div id="app" class="mode-web">
+  <div id="stage" class="stage">
+    <div id="map"></div>
+    <div id="map-loading-overlay">
+      <span class="spin big"></span>
+      <span>Loading map…</span>
+    </div>
+
+    <button id="m-search" class="m-search" type="button">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <span>Search town or address</span>
+    </button>
+    <button id="expand-tab" class="expand-tab" type="button" title="Show panel">&rsaquo;</button>
+
+    <!-- One panel: a bottom sheet in mobile mode, a collapsible sidebar in web mode -->
+    <aside id="panel" class="panel" data-view="explore">
+      <div id="grip" class="grip"><span></span></div>
+      <header id="phead" class="p-head">
+        <h1>Where to Live MA</h1>
+        <button id="settings-btn" class="head-btn settings-btn" type="button" title="Settings" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button id="collapse-btn" class="head-btn collapse-btn" type="button" title="Hide panel">&lsaquo;</button>
+      </header>
+
+      <!-- Explore: town card + town / address search -->
+      <div id="pbody" class="p-body" data-view="explore">
+        <div id="town_card" class="box"></div>
+        <section class="box">
+          <h4>Explore a town</h4>
+          <select id="town_sel" aria-label="Select a town">
+            <option value="">— Select a town —</option>
+          </select>
+          <div class="or-divider">OR</div>
+          <h4>Explore an address</h4>
+          <input id="addr_query" type="text" placeholder="e.g., 24 Beacon St, Newton" aria-label="Address" autocomplete="street-address">
+          <div class="btns">
+            <button id="addr_go" class="btn btn-primary" type="button">Find address</button>
+            <button id="reset_view" class="btn" type="button">Reset map</button>
+          </div>
+          <p class="hint">Tap a town on the map to see its details here.</p>
+        </section>
+      </div>
+
+      <!-- Saved: starred towns, kept in this browser -->
+      <div id="saved-view" class="p-body is-empty" data-view="saved">
+        <section class="box saved">
+          <h4>Saved towns</h4>
+          <div id="saved_table"></div>
+          <div class="btns saved-actions">
+            <button id="saved-csv" class="btn btn-primary" type="button">Download CSV</button>
+            <button id="saved-share" class="btn" type="button">Copy share link</button>
+          </div>
+          <p class="hint">Saved in this browser only. Open a share link on another device to bring your list along.</p>
+        </section>
+      </div>
+
+      <!-- About: methodology (keep in sync with 01_pop_density.R / 02_preprocessing.R) -->
+      <div id="about-view" class="p-body" data-view="about">
+        <section class="box about">
+          <h4>Finding a town to settle down</h4>
+          <p>Built for those deciding where to settle down in Massachusetts</p>
+          <p><b>Schools come first.</b> They matter if you have or plan to have kids, and strong schools tend to go with
+            nice neighborhoods, good amenities and lower crime. Treat them as a signal, not a guarantee.</p>
+          <p class="about-sub">How to use it</p>
+          <ol>
+            <li>Shortlist towns with strong schools (shaded green or purple). Tap the star on a town's details to save it, then compare or download your list in the Saved tab.</li>
+            <li>Check the commute: tap the train button on the map to show commuter rail and T lines, or use the ruler for driving time.</li>
+            <li>Check home prices and taxes in the town's details, then search listings on <a href="https://www.redfin.com/" target="_blank" rel="noopener">Redfin</a>.</li>
+          </ol>
+          <div class="about-legend">
+            <div><span class="set-swatch tier1"></span><b>Tier 1</b> school score 70+</div>
+            <div><span class="set-swatch tier2"></span><b>Tier 2</b> school score 50–69</div>
+            <div><span class="about-line"></span>Commuter rail lines and stations</div>
+            <div><span class="set-swatch subway"></span>T lines (subway and light rail)</div>
+          </div>
+        </section>
+        <section class="box about">
+          <h4>School score</h4>
+          <p>The average of three rankings for the town's public school district. Each one ranks
+            the district against every Massachusetts town from 0 to 100:</p>
+          <ul>
+            <li><b>MCAS:</b> grade 10 average scaled score across subjects</li>
+            <li><b>AP:</b> share of AP exams scored 3 or higher</li>
+            <li><b>SAT:</b> average reading/writing + math score</li>
+          </ul>
+          <p class="about-note">Scores are relative, not absolute: 70 means better than about 70% of towns. Towns in a
+            regional district share its score. Towns with missing test data have no score.</p>
+        </section>
+        <section class="box about">
+          <h4>Other numbers</h4>
+          <dl>
+            <dt>Typical 3-bed home</dt>
+            <dd>Zillow Home Value Index for 3-bedroom homes (middle third of the market), latest month. The change compares it with the same month a year earlier.</dd>
+            <dt>Property tax rate</dt>
+            <dd>Residential tax rate for the latest fiscal year each town has set, shown as a percent of assessed value.</dd>
+            <dt>College-bound</dt>
+            <dd>Share of the district's high school graduates enrolled in college the fall after graduating.</dd>
+            <dt>High school size</dt>
+            <dd>An estimate: the district's grade 10 MCAS test-takers × 4.</dd>
+            <dt>Density</dt>
+            <dd>Population ÷ town area. Rural under 200 people/sq mi, sparse suburban 200–499, mid-dense 500–999, dense suburb 1,000–3,000, urban city over 3,000.</dd>
+          </dl>
+        </section>
+        <section class="box about">
+          <h4>Sources</h4>
+          <ul class="about-sources">
+            <li><a href="https://educationtocareer.data.mass.gov/" target="_blank" rel="noopener">MA DESE Education-to-Career data hub</a> (MCAS, AP, SAT, college enrollment)</li>
+            <li><a href="https://www.zillow.com/research/data/" target="_blank" rel="noopener">Zillow Research</a> (home values)</li>
+            <li><a href="https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?rdReport=PropertyTaxInformation.taxratesbyclass.taxratesbyclass_main" target="_blank" rel="noopener">MA Division of Local Services</a> (tax rates)</li>
+            <li><a href="https://data.census.gov/" target="_blank" rel="noopener">U.S. Census ACS 5-year</a> (population)</li>
+            <li><a href="https://www.mbta.com/developers/gtfs" target="_blank" rel="noopener">MBTA GTFS</a> (commuter rail and T lines)</li>
+            <li><a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a> (driving distances for the ruler)</li>
+          </ul>
+          <p class="about-note">Each source is pulled at its latest available release whenever the data is rebuilt.</p>
+        </section>
+      </div>
+
+      <!-- Explore / Saved / About switch -->
+      <nav id="tabbar" class="tabbar" role="tablist">
+        <button type="button" role="tab" class="active" aria-selected="true" data-tab="explore">
+          <svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>
+          <span>Explore</span>
+        </button>
+        <button type="button" role="tab" aria-selected="false" data-tab="saved">
+          <span class="tab-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>
+            <span id="saved-count" class="tab-count" style="display:none"></span>
+          </span>
+          <span>Saved</span>
+        </button>
+        <button type="button" role="tab" aria-selected="false" data-tab="about">
+          <svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>
+          <span>About</span>
+        </button>
+      </nav>
+      <!-- Map credits, copied in from the map's attribution -->
+      <footer id="map-credit" class="p-foot"></footer>
+    </aside>
+
+    <!-- Settings menu: outside the panel (which clips its contents), positioned next to the gear -->
+    <div id="settings-pop" class="settings-pop" role="dialog" aria-label="Settings">
+      <div class="set-label">Appearance</div>
+      <div class="seg" role="group">
+        <button type="button" data-theme-choice="light">Light</button>
+        <button type="button" data-theme-choice="dark">Dark</button>
+      </div>
+      <div class="set-label set-gap">Layout</div>
+      <div class="seg" role="group">
+        <button type="button" data-mode-choice="web">Desktop</button>
+        <button type="button" data-mode-choice="mobile">Mobile</button>
+      </div>
+      <div class="set-label set-gap">School shading on map</div>
+      <label class="set-toggle">
+        <span class="set-swatch tier1"></span>
+        <span class="set-text"><b>Tier 1 schools</b><small>score 70+</small></span>
+        <input type="checkbox" data-tier="1" checked>
+      </label>
+      <label class="set-toggle">
+        <span class="set-swatch tier2"></span>
+        <span class="set-text"><b>Tier 2 schools</b><small>score 50–69</small></span>
+        <input type="checkbox" data-tier="2" checked>
+      </label>
+    </div>
+
+    <!-- Transit layers: opened by the train button in the map controls -->
+    <div id="transit-pop" class="settings-pop transit-pop" role="dialog" aria-label="Transit layers">
+      <div class="set-label">Show on map</div>
+      <label class="set-toggle">
+        <span class="set-swatch rail"></span>
+        <span class="set-text"><b>Commuter rail</b><small>MBTA lines and stations</small></span>
+        <input type="checkbox" data-layer="rail" checked>
+      </label>
+      <div class="set-tlines">
+        <div class="set-text"><b>T lines</b><small>subway and light rail: tap to show or hide each</small></div>
+        <div class="chips">
+          <button type="button" class="tchip" data-tline="Red" aria-pressed="false" style="--c:#DA291C">Red</button>
+          <button type="button" class="tchip" data-tline="Orange" aria-pressed="false" style="--c:#ED8B00">Orange</button>
+          <button type="button" class="tchip" data-tline="Blue" aria-pressed="false" style="--c:#003DA5">Blue</button>
+          <button type="button" class="tchip" data-tline="Green" aria-pressed="false" style="--c:#00843D">Green</button>
+          <button type="button" class="tchip" data-tline="Mattapan" aria-pressed="false" style="--c:#DA291C">Mattapan</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+  </div>
+</div>
+</body>
+</html>
